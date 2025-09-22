@@ -15,4 +15,6 @@ df = pd.DataFrame(data)
 st.write("Here’s a small test dataframe:")
 st.dataframe(df)
 
+# Make a simple line chart with the months from jan-apr on the x-axis and the values on the y-axis
+st.write("And here’s a simple line chart:")
 st.line_chart(df.set_index("Month"))
