@@ -111,47 +111,42 @@ def page_plots() -> None:
         st.warning("No data for selected months.")
         return
 
-    # --- Aggregate data to daily mean to avoid huge image sizes ---
-    df_sel['date'] = df_sel['time'].dt.date
-    numeric_cols = [c for c in df_sel.columns if pd.api.types.is_numeric_dtype(df_sel[c]) and c != 'time']
-
-    df_daily = df_sel.groupby('date')[numeric_cols].mean().reset_index()
-
     # Prepare figure
     fig, ax = plt.subplots(figsize=(12, 6))
 
     # Columns to plot (exclude wind_direction)
-    plot_cols = [c for c in numeric_cols if c != 'wind_direction_10m (°)']
+    plot_cols = [c for c in data_columns if c != 'wind_direction_10m (°)']
 
+    # Plot numeric columns (hourly values)
     if choice == "All":
         for col in plot_cols:
-            ax.plot(df_daily['date'], df_daily[col], label=col)
+            ax.plot(df_sel['time'], df_sel[col], label=col)
         ax.set_ylabel("Temperature / Wind / Wind Gusts")
-    elif choice != "wind_direction_10m (°)":
-        if choice not in df_daily.columns or not pd.api.types.is_numeric_dtype(df_daily[choice]):
+    elif choice != 'wind_direction_10m (°)':
+        if not pd.api.types.is_numeric_dtype(df_sel[choice]):
             st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
             st.dataframe(df_sel[choice].value_counts().rename_axis(choice).reset_index(name="count"))
             return
-        ax.plot(df_daily['date'], df_daily[choice], linestyle='-')
+        ax.plot(df_sel['time'], df_sel[choice], linestyle='-')
         ax.set_ylabel(choice)
 
-    # --- Wind direction arrows ---
+    # --- Wind direction arrows only ---
     if choice == "All" or choice == "wind_direction_10m (°)":
         if 'wind_direction_10m (°)' in df_sel.columns:
             arrow_length = 0.05  # fraction of axis (vertical)
-            total_days = (df_sel['date'].max() - df_sel['date'].min()).days + 1
+            total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
             max_arrows = 20  # max arrows to avoid clutter
 
             if start_month == end_month:
-                # One arrow per day: average per day
-                df_wind = df_sel.groupby('date')['wind_direction_10m (°)'].mean().reset_index()
-                for _, row in df_wind.iterrows():
+                # Single month: one arrow per day (daily mean)
+                df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
+                for _, row in df_daily.iterrows():
                     deg = row['wind_direction_10m (°)']
                     rad = np.deg2rad(deg)
                     ax.annotate(
                         '',
-                        xy=(row['date'], 0.5 + arrow_length * np.cos(rad)),
-                        xytext=(row['date'], 0.5),
+                        xy=(row['time'], 0.5 + arrow_length * np.cos(rad)),
+                        xytext=(row['time'], 0.5),
                         xycoords=('data', 'axes fraction'),
                         textcoords=('data', 'axes fraction'),
                         arrowprops=dict(facecolor='k', edgecolor='k', width=1, headwidth=4, headlength=6)
@@ -159,10 +154,10 @@ def page_plots() -> None:
             else:
                 # Multiple months: evenly spaced arrows, average wind direction for each segment
                 num_arrows = min(total_days, max_arrows)
-                dates = pd.date_range(df_sel['date'].min(), df_sel['date'].max(), periods=num_arrows)
-                for i, date in enumerate(dates):
-                    # Select all rows in this segment (closest day)
-                    mask = (df_sel['date'] >= date) & (df_sel['date'] < date + pd.Timedelta(days=1))
+                dates = pd.date_range(df_sel['time'].dt.date.min(), df_sel['time'].dt.date.max(), periods=num_arrows)
+                for date in dates:
+                    # Take all rows on that day and compute mean
+                    mask = df_sel['time'].dt.date == date.date()
                     if mask.any():
                         mean_deg = df_sel.loc[mask, 'wind_direction_10m (°)'].mean()
                     else:
@@ -184,7 +179,6 @@ def page_plots() -> None:
     ax.grid(True)
     fig.autofmt_xdate()
     st.pyplot(fig)
-
 
 # -----------------------------
 # Page: Extra placeholder
