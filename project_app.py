@@ -35,6 +35,9 @@ MONTH_NAMES = {i: pd.Timestamp(2020, i, 1).strftime("%b") for i in range(1,13)} 
 # -----------------------------
 # Page: Home
 # -----------------------------
+def page_home():
+    st.title("Home")
+    st.write("Welcome to my app! Use the sidebar to navigate.")
 # -----------------------------
 # Page: Data table (row-wise LineChartColumn for first month) with optional highlighting
 # -----------------------------
