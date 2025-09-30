@@ -1,10 +1,3 @@
-# app.py
-"""
-IND320 Streamlit app entrypoint using st.Page + st.navigation
-- Put this file in the root of your repository (same folder as open-meteo-subset.csv)
-- Make sure requirements.txt includes streamlit>=1.32, pandas, matplotlib, numpy
-"""
-
 from secrets import choice
 from typing import Callable, List, Tuple
 import streamlit as st
@@ -28,7 +21,6 @@ df = load_data()
 
 # Identify data columns (exclude time and date)
 data_columns = [c for c in df.columns if c not in ['time', 'date']]
-numeric_columns = df.select_dtypes(include='number').columns.tolist()
 
 # Helper: month name mapping
 MONTH_NAMES = {i: pd.Timestamp(2020, i, 1).strftime("%b") for i in range(1,13)} # map 1->Jan, 2->Feb, etc.
@@ -39,6 +31,8 @@ MONTH_NAMES = {i: pd.Timestamp(2020, i, 1).strftime("%b") for i in range(1,13)} 
 def page_home():
     st.title("Home")
     st.write("Welcome to my app! Use the sidebar to navigate.")
+
+
 # -----------------------------
 # Page: Data table (row-wise LineChartColumn for first month) with optional highlighting
 # -----------------------------
@@ -48,6 +42,7 @@ def page_data_table() -> None:
         "This table shows the minimum, maximum and mean values for each variable in January. The January (hourly) column contains the January time series as a line chart."
     )
 
+    # Ensure 'time' column exists. Unnecessary if we know the CSV is correct.
     if 'time' not in df.columns:
         st.error("No 'time' column in CSV — this page requires a time column.")
         return
