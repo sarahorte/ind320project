@@ -44,8 +44,8 @@ def page_home():
 def page_data_table() -> None:
     st.title("Data Table — First month overview")
     st.write(
-        "This page shows one row per variable. "
-        "The `Jan` column contains the January time series (row-wise) as a sparkline / line chart."
+        "This table shows the minimum, maximum, and mean values for each variable in January, with one row per variable. "
+        "The January (hourly) column contains the January time series as a line chart."
     )
 
     if 'time' not in df.columns:
@@ -70,8 +70,8 @@ def page_data_table() -> None:
 
     column_config = {
         "mean": st.column_config.NumberColumn(label="Mean", format="%.1f", width=None),
-        "min": st.column_config.NumberColumn(label="Min", format="%.1f", width="small"),
-        "max": st.column_config.NumberColumn(label="Max", format="%.1f", width="small"),
+        "min": st.column_config.NumberColumn(label="Min", format="%.1f", width=None),
+        "max": st.column_config.NumberColumn(label="Max", format="%.1f", width=None),
         "Jan": st.column_config.LineChartColumn(label="January (hourly)", help="Hourly time series", width="large", y_min=None, y_max=None)
     }
 
@@ -93,29 +93,16 @@ def page_plots() -> None:
     cols = [c for c in data_columns]
     choice = st.selectbox("Select column to plot", ["All"] + cols, index=0)
 
-    # Month selection slider: allow selecting a range of months; default = first month (1)
-    months = sorted(df['time'].dt.month.unique())
-    # if months not covering full year, use 1..12 as options but pick the first present month
-    if len(months) == 0:
-        st.error("No months found in time column.")
-        return
-
-    # Build options list with month numbers and labels for nicer UI
+    # Month selection slider
     month_options = list(range(1,13))
-    month_labels = [f"{m} — {MONTH_NAMES[m]}" for m in month_options]
-
-    # Use a range slider (select_slider accepts a tuple) default to first month (1,1)
-    default_val = (1, 1)
     month_range = st.select_slider(
         "Select month range (inclusive)",
         options=month_options,
-        value=default_val,
+        value=(1,1),
         format_func=lambda x: MONTH_NAMES.get(x, str(x))
     )
-    # If user chooses a single month, month_range will be an int — normalize to tuple
     if isinstance(month_range, int):
         month_range = (month_range, month_range)
-
     start_month, end_month = month_range
 
     # Filter dataframe for selected months
@@ -124,31 +111,37 @@ def page_plots() -> None:
         st.warning("No data for selected months.")
         return
 
-    # Plotting
-    fig, ax = plt.subplots(figsize=(10, 5))
+    # Prepare figure
+    fig, ax = plt.subplots(figsize=(12,6))
 
-    # If All selected: normalize each numeric column for trend comparison, skip non-numeric
+    # Determine which columns to plot
     if choice == "All":
-        numeric_cols = [c for c in df_sel.columns if pd.api.types.is_numeric_dtype(df_sel[c]) and c != 'date']
+        numeric_cols = [c for c in df_sel.columns if pd.api.types.is_numeric_dtype(df_sel[c]) and c != 'time']
         if not numeric_cols:
             st.error("No numeric columns to plot.")
             return
-
-        # Normalize each series to 0-1 for trend comparison
-        df_norm = df_sel.set_index('time')[numeric_cols].apply(lambda s: (s - s.min()) / (s.max() - s.min()))
-        for col in df_norm.columns:
-            ax.plot(df_norm.index, df_norm[col], label=col)
-        ax.set_ylabel("Normalized value (0 - 1)")
+        for col in numeric_cols:
+            ax.plot(df_sel['time'], df_sel[col], label=col)
+        ax.set_ylabel("Normalized / values")
     else:
-        # Single column: plot actual values
         if not pd.api.types.is_numeric_dtype(df_sel[choice]):
-            # If non-numeric (e.g. strings), display counts or a table instead
             st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
             st.dataframe(df_sel[choice].value_counts().rename_axis(choice).reset_index(name="count"))
             return
-
         ax.plot(df_sel['time'], df_sel[choice], marker='o', linestyle='-')
         ax.set_ylabel(choice)
+
+    # Wind direction arrows (optional)
+    if 'wind_direction_10m (°)' in df_sel.columns:
+        arrow_every = max(len(df_sel)//20,1)  # reduce number of arrows
+        arrow_length = 0.5
+        y_center = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2
+        for _, row in df_sel.iloc[::arrow_every].iterrows():
+            deg = row['wind_direction_10m (°)']
+            rad = np.deg2rad(deg)
+            dx = arrow_length * np.sin(rad)
+            dy = arrow_length * np.cos(rad)
+            ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
 
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
     ax.set_xlabel("Time")
