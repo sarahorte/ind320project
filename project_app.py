@@ -5,6 +5,7 @@ IND320 Streamlit app entrypoint using st.Page + st.navigation
 - Make sure requirements.txt includes streamlit>=1.32, pandas, matplotlib, numpy
 """
 
+from secrets import choice
 from typing import Callable, List, Tuple
 import streamlit as st
 import pandas as pd
@@ -132,22 +133,39 @@ def page_plots() -> None:
 
     # --- Wind direction arrows only ---
     if choice == "All" or choice == "wind_direction_10m (°)":
-        # Wind direction arrows averaged to one per day, with a maximum number of arrows. If there is a subset of more than one month, downsample to max_arrows. average direction per day included in the arrow.
-        max_arrows = 31  # maximum number of arrows to display
+        # Fix y-axis to a constant range
+        ax.set_ylim(-15, 25)  # consistent vertical space
+
+        # Max number of arrows to show
+        max_arrows = 31  
+
+        # Prepare daily mean for wind direction
         df_sel['date'] = df_sel['time'].dt.date
         df_daily = df_sel.groupby('date').agg({'wind_direction_10m (°)': 'mean', 'time': 'first'}).reset_index()
+
+        # Downsample if too many arrows
         if len(df_daily) > max_arrows:
-            df_daily = df_daily.iloc[::len(df_daily)//max_arrows + 1]  # downsample to max_arrows 
-        y_center = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2 if ax.get_ylim()[0] < ax.get_ylim()[1] else 0  # Place arrows at the vertical center of the left y-axis or at 0 if y-limits are equal
-        arrow_length = 0.5 * (ax.get_ylim()[1] - ax.get_ylim()[0]) / 10 if ax.get_ylim()[1] > ax.get_ylim()[0] else 0.5  # Arrow length scaled to y-axis range or default to 0.5
+            step = len(df_daily) // max_arrows + 1
+            df_daily = df_daily.iloc[::step]
+
+        # Vertical center of the arrows
+        y_center = 5  # fixed middle of y-axis (-15 to 25) for all arrows
+
+        # Fixed arrow length (independent of y-axis scaling)
+        arrow_length = 2  # constant units, same size regardless of selected columns
+
         for _, row in df_daily.iterrows():
             direction_deg = row['wind_direction_10m (°)']
-            direction_rad = np.deg2rad(direction_deg)  # Convert degrees to radians for trigonometric functions
-            dx = arrow_length * np.sin(direction_rad)  # Calculate x and y components
+            direction_rad = np.deg2rad(direction_deg)
+
+            # Calculate dx/dy for arrow, independent of y-axis scale
+            dx = arrow_length * np.sin(direction_rad)
             dy = arrow_length * np.cos(direction_rad)
-            ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')  # Draw arrow
-            # make the y-axis be the same y-axis a when selecting "All". from -15 to 25.
-            ax.set_ylim(-15, 25)
+
+            # Draw arrow at y_center
+            ax.arrow(row['time'], y_center, dx, dy,
+                    head_width=0.8, head_length=0.8, fc='k', ec='k')
+
 
     # Final formatting
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
