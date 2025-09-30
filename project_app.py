@@ -122,29 +122,24 @@ def page_plots() -> None:
             return
         for col in numeric_cols:
             ax.plot(df_sel['time'], df_sel[col], label=col)
-        ax.set_ylabel("Normalized / values")
-    else:
-        if not pd.api.types.is_numeric_dtype(df_sel[choice]):
-            st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
-            st.dataframe(df_sel[choice].value_counts().rename_axis(choice).reset_index(name="count"))
-            return
-        ax.plot(df_sel['time'], df_sel[choice], marker='o', linestyle='-')
-        ax.set_ylabel(choice)
+        ax.set_ylabel("Temperature / Wind / Wind Gusts")
 
-    # --- Wind direction arrows ---
-    if 'wind_direction_10m (°)' in df_sel.columns:
-        y_center = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2
-        arrow_length = 0.5  # adjust as needed
 
-    # Single month: one arrow per day (average wind per day)
-        if start_month == end_month:
-            df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
-            for _, row in df_daily.iterrows():
-                deg = row['wind_direction_10m (°)']
-                rad = np.deg2rad(deg)
-                dx = arrow_length * np.sin(rad)
-                dy = arrow_length * np.cos(rad)
-                ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
+    if choice == "wind_direction_10m (°)":
+        # --- Wind direction arrows ---
+        if 'wind_direction_10m (°)' in df_sel.columns:
+            y_center = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2
+            arrow_length = 0.5  # adjust as needed
+
+        # Single month: one arrow per day (average wind per day)
+            if start_month == end_month:
+                df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
+                for _, row in df_daily.iterrows():
+                   deg = row['wind_direction_10m (°)']
+                   rad = np.deg2rad(deg)
+                   dx = arrow_length * np.sin(rad)
+                   dy = arrow_length * np.cos(rad)
+                   ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
 
     # Multiple months: average over the whole subset, arrows spaced evenly
         else:
@@ -157,6 +152,16 @@ def page_plots() -> None:
                dx = arrow_length * np.sin(rad)
                dy = arrow_length * np.cos(rad)
                ax.arrow(date, y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
+
+    else:
+        if not pd.api.types.is_numeric_dtype(df_sel[choice]):
+            st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
+            st.dataframe(df_sel[choice].value_counts().rename_axis(choice).reset_index(name="count"))
+            return
+        ax.plot(df_sel['time'], df_sel[choice], linestyle='-')
+        ax.set_ylabel(choice)
+
+
 
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
     ax.set_xlabel("Time")
