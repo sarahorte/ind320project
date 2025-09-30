@@ -81,7 +81,7 @@ def page_data_table() -> None:
     # Configure the Jan column to show a line chart inline (row-wise)
     column_config = {
         "Jan": st.column_config.LineChartColumn(
-            "January (hourly)",
+            label = "January (hourly)",
             help="Hourly time series for January (one row per original column).",
             # make the chart height a bit larger for better visibility
             height=100,
