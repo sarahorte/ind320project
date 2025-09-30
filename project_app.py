@@ -81,9 +81,6 @@ def page_data_table() -> None:
 # -----------------------------
 # Page: Interactive plots
 # -----------------------------
-# -----------------------------
-# Page: Interactive plots
-# -----------------------------
 def page_plots() -> None:
     st.title("Interactive Plots")
     st.write("Choose a column (or All) and a month-range to plot. Default month selection is January.")
@@ -117,13 +114,16 @@ def page_plots() -> None:
     # Prepare figure
     fig, ax = plt.subplots(figsize=(12,6))
 
-    # Determine which columns to plot (exclude wind_direction column)
+    # Determine which columns to plot (exclude wind_direction for lines)
     plot_cols = [c for c in data_columns if c != 'wind_direction_10m (°)']
+
     if choice == "All":
+        # Plot all numeric columns except wind direction
         for col in plot_cols:
             ax.plot(df_sel['time'], df_sel[col], label=col)
         ax.set_ylabel("Temperature / Wind / Wind Gusts")
-    elif choice != 'wind_direction_10m (°)':
+    elif choice != "wind_direction_10m (°)":
+        # Single column numeric plot
         if not pd.api.types.is_numeric_dtype(df_sel[choice]):
             st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
             st.dataframe(df_sel[choice].value_counts().rename_axis(choice).reset_index(name="count"))
@@ -131,43 +131,45 @@ def page_plots() -> None:
         ax.plot(df_sel['time'], df_sel[choice], linestyle='-')
         ax.set_ylabel(choice)
 
-    # --- Wind direction arrows (fixed size, independent of y-axis scale) ---
-    if 'wind_direction_10m (°)' in df_sel.columns:
-        arrow_length = 0.05  # fraction of axis (0-1) for visual length
+    # --- Wind direction arrows (only for "All" or wind_direction column) ---
+    if choice == "All" or choice == "wind_direction_10m (°)":
+        if 'wind_direction_10m (°)' in df_sel.columns:
+            arrow_length = 0.04  # fraction of axis for arrow length
+            # Determine arrow positions
+            if start_month == end_month:
+                # Single month: one arrow per day (mean wind per day)
+                df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
+                arrow_dates = df_daily['time']
+                arrow_degs = df_daily['wind_direction_10m (°)']
+            else:
+                # Multiple months: evenly spaced arrows over subset, mean direction
+                total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
+                num_arrows = min(total_days, 20)
+                arrow_dates = pd.date_range(df_sel['time'].dt.date.min(), df_sel['time'].dt.date.max(), periods=num_arrows)
+                arrow_degs = [df_sel['wind_direction_10m (°)'].mean()] * len(arrow_dates)
 
-        total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
-
-        if start_month == end_month:
-            # Single month: one arrow per day
-            df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
-            for _, row in df_daily.iterrows():
-                deg = row['wind_direction_10m (°)']
+            # Draw arrows
+            for date, deg in zip(arrow_dates, arrow_degs):
                 rad = np.deg2rad(deg)
-            # Use annotation with axes fraction for dy
-                ax.annotate(
-                    '', 
-                    xy=(row['time'], 0.5),  # y=0.5 in axis fraction (vertical center)
-                    xytext=(row['time'], 0.5 + arrow_length*np.cos(rad)),
-                    xycoords=('data', 'axes fraction'),
-                    textcoords=('data', 'axes fraction'),
-                    arrowprops=dict(facecolor='k', edgecolor='k', width=1, headwidth=4, headlength=6)
-                )
-        else:
-            # Multiple months: mean over all selected days, spaced evenly
-            mean_deg = df_sel['wind_direction_10m (°)'].mean()
-            num_arrows = min(total_days, 20)
-            dates = pd.date_range(df_sel['time'].dt.date.min(), df_sel['time'].dt.date.max(), periods=num_arrows)
-            for date in dates:
-                rad = np.deg2rad(mean_deg)
+                dx = arrow_length * np.sin(rad)
+                dy = arrow_length * np.cos(rad)
                 ax.annotate(
                     '',
-                    xy=(date, 0.5),
-                    xytext=(date, 0.5 + arrow_length*np.cos(rad)),
+                    xy=(date, 0.5),                 # start at vertical center
+                    xytext=(date, 0.5 + dy),        # endpoint based on arrow
                     xycoords=('data', 'axes fraction'),
                     textcoords=('data', 'axes fraction'),
-                    arrowprops=dict(facecolor='k', edgecolor='k', width=1, headwidth=4, headlength=6)
+                    arrowprops=dict(
+                        facecolor='k',
+                        edgecolor='k',
+                        width=1,
+                        headwidth=6,
+                        headlength=6,
+                        shrink=0,
+                        mutation_scale=10
+                    ),
+                    annotation_clip=False
                 )
-
 
     # Final formatting
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
