@@ -146,8 +146,8 @@ def page_plots() -> None:
             dx = arrow_length * np.sin(direction_rad)  # Calculate x and y components
             dy = arrow_length * np.cos(direction_rad)
             ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')  # Draw arrow
-            # make the y-axis be the same y-axis a when selecting "All". from -10 to 40.
-            ax.set_ylim(-10, 40)
+            # make the y-axis be the same y-axis a when selecting "All". from -15 to 25.
+            ax.set_ylim(-15, 25)
 
     # Final formatting
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
