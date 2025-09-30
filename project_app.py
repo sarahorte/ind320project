@@ -127,7 +127,7 @@ def page_plots() -> None:
     # Right y-axis for wind direction
     if 'wind_direction_10m (°)' in df_sel.columns and (choice == "All" or choice == 'wind_direction_10m (°)'):
         ax2 = ax1.twinx()
-        ax2.plot(df_sel['time'], df_sel['wind_direction_10m (°)'], color='orange', label='Wind Direction')
+        ax2.plot(df_sel['time'], df_sel['wind_direction_10m (°)'], color='indigo', label='Wind Direction')
         ax2.set_ylabel("Wind Direction (°)")
         ax2.set_ylim(0, 360)  # wind direction in degrees
         ax2.legend(loc='upper right')
