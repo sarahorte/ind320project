@@ -132,13 +132,11 @@ def page_plots() -> None:
     # Right y-axis for wind direction
     if 'wind_direction_10m (°)' in df_sel.columns and (choice == "All" or choice == 'wind_direction_10m (°)'):
         ax2 = ax1.twinx()
-        # Optionally, average per day for smoother lines
-        df_sel['date'] = df_sel['time'].dt.date
-        df_daily = df_sel.groupby('date')['wind_direction_10m (°)'].mean().reset_index()
-        ax2.plot(df_daily['date'], df_daily['wind_direction_10m (°)'], color='orange', label='Wind Direction')
+        ax2.plot(df_sel['time'], df_sel['wind_direction_10m (°)'], color='orange', label='Wind Direction')
         ax2.set_ylabel("Wind Direction (°)")
         ax2.set_ylim(0, 360)  # wind direction in degrees
         ax2.legend(loc='upper right')
+
 
     # Final formatting
     ax1.set_title(f"Data for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}")
