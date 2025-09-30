@@ -81,6 +81,9 @@ def page_data_table() -> None:
 # -----------------------------
 # Page: Interactive plots
 # -----------------------------
+# -----------------------------
+# Page: Interactive plots
+# -----------------------------
 def page_plots() -> None:
     st.title("Interactive Plots")
     st.write("Choose a column (or All) and a month-range to plot. Default month selection is January.")
@@ -114,46 +117,13 @@ def page_plots() -> None:
     # Prepare figure
     fig, ax = plt.subplots(figsize=(12,6))
 
-    # Determine which columns to plot
+    # Determine which columns to plot (exclude wind_direction column)
+    plot_cols = [c for c in data_columns if c != 'wind_direction_10m (°)']
     if choice == "All":
-        numeric_cols = [c for c in df_sel.columns if pd.api.types.is_numeric_dtype(df_sel[c]) and c != 'time']
-        if not numeric_cols:
-            st.error("No numeric columns to plot.")
-            return
-        for col in numeric_cols:
+        for col in plot_cols:
             ax.plot(df_sel['time'], df_sel[col], label=col)
         ax.set_ylabel("Temperature / Wind / Wind Gusts")
-
-
-    if choice == "wind_direction_10m (°)":
-        # --- Wind direction arrows ---
-        if 'wind_direction_10m (°)' in df_sel.columns:
-            y_center = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2
-            arrow_length = 0.5  # adjust as needed
-
-        # Single month: one arrow per day (average wind per day)
-            if start_month == end_month:
-                df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
-                for _, row in df_daily.iterrows():
-                   deg = row['wind_direction_10m (°)']
-                   rad = np.deg2rad(deg)
-                   dx = arrow_length * np.sin(rad)
-                   dy = arrow_length * np.cos(rad)
-                   ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
-
-    # Multiple months: average over the whole subset, arrows spaced evenly
-        else:
-            mean_deg = df_sel['wind_direction_10m (°)'].mean()  # mean over the whole subset
-            total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
-            num_arrows = min(total_days, 20)  # show up to 20 arrows to avoid clutter
-            dates = pd.date_range(df_sel['time'].dt.date.min(), df_sel['time'].dt.date.max(), periods=num_arrows)
-            for date in dates:
-               rad = np.deg2rad(mean_deg)
-               dx = arrow_length * np.sin(rad)
-               dy = arrow_length * np.cos(rad)
-               ax.arrow(date, y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
-
-    else:
+    elif choice != 'wind_direction_10m (°)':
         if not pd.api.types.is_numeric_dtype(df_sel[choice]):
             st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
             st.dataframe(df_sel[choice].value_counts().rename_axis(choice).reset_index(name="count"))
@@ -161,14 +131,42 @@ def page_plots() -> None:
         ax.plot(df_sel['time'], df_sel[choice], linestyle='-')
         ax.set_ylabel(choice)
 
+    # --- Wind direction arrows ---
+    if 'wind_direction_10m (°)' in df_sel.columns:
+        fig.canvas.draw()  # ensures axis limits are updated
+        y_center = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2
+        arrow_length = 0.5  # adjust as needed
 
+        total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
 
+        if start_month == end_month:
+            # Single month: one arrow per day
+            df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
+            for _, row in df_daily.iterrows():
+                deg = row['wind_direction_10m (°)']
+                rad = np.deg2rad(deg)
+                dx = arrow_length * np.sin(rad)
+                dy = arrow_length * np.cos(rad)
+                ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
+        else:
+            # Multiple months: average over all selected days, show arrows spaced evenly
+            mean_deg = df_sel['wind_direction_10m (°)'].mean()
+            num_arrows = min(total_days, 20)
+            dates = pd.date_range(df_sel['time'].dt.date.min(), df_sel['time'].dt.date.max(), periods=num_arrows)
+            for date in dates:
+                rad = np.deg2rad(mean_deg)
+                dx = arrow_length * np.sin(rad)
+                dy = arrow_length * np.cos(rad)
+                ax.arrow(date, y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
+
+    # Final formatting
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
     ax.set_xlabel("Time")
     ax.legend(loc='best', fontsize='small')
     ax.grid(True)
     fig.autofmt_xdate()
     st.pyplot(fig)
+
 
 # -----------------------------
 # Page: Extra placeholder
