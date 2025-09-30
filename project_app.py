@@ -83,7 +83,11 @@ def page_data_table() -> None:
         "Jan": st.column_config.LineChartColumn(
             "January (hourly)",
             help="Hourly time series for January (one row per original column).",
-            # You can set other parameters here such as width
+            # make the chart height a bit larger for better visibility
+            height=100,
+            width=300,
+            y_min=None,  # auto-scale
+            y_max=None   # auto-scale
         )
     }
 
