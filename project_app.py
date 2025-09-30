@@ -94,11 +94,11 @@ def page_plots() -> None:
     choice = st.selectbox("Select column to plot", ["All"] + cols, index=0)
 
     # Month selection slider
-    month_options = list(range(1,13))
+    month_options = list(range(1, 13))
     month_range = st.select_slider(
         "Select month range (inclusive)",
         options=month_options,
-        value=(1,1),
+        value=(1, 1),
         format_func=lambda x: MONTH_NAMES.get(x, str(x))
     )
     if isinstance(month_range, int):
@@ -111,69 +111,75 @@ def page_plots() -> None:
         st.warning("No data for selected months.")
         return
 
-    # Prepare figure
-    fig, ax = plt.subplots(figsize=(12,6))
+    # --- Aggregate data to daily mean to avoid huge image sizes ---
+    df_sel['date'] = df_sel['time'].dt.date
+    numeric_cols = [c for c in df_sel.columns if pd.api.types.is_numeric_dtype(df_sel[c]) and c != 'time']
 
-    # Determine which columns to plot (exclude wind_direction for lines)
-    plot_cols = [c for c in data_columns if c != 'wind_direction_10m (°)']
+    df_daily = df_sel.groupby('date')[numeric_cols].mean().reset_index()
+
+    # Prepare figure
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Columns to plot (exclude wind_direction)
+    plot_cols = [c for c in numeric_cols if c != 'wind_direction_10m (°)']
 
     if choice == "All":
-        # Plot all numeric columns except wind direction
         for col in plot_cols:
-            ax.plot(df_sel['time'], df_sel[col], label=col)
+            ax.plot(df_daily['date'], df_daily[col], label=col)
         ax.set_ylabel("Temperature / Wind / Wind Gusts")
     elif choice != "wind_direction_10m (°)":
-        # Single column numeric plot
-        if not pd.api.types.is_numeric_dtype(df_sel[choice]):
+        if choice not in df_daily.columns or not pd.api.types.is_numeric_dtype(df_daily[choice]):
             st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
             st.dataframe(df_sel[choice].value_counts().rename_axis(choice).reset_index(name="count"))
             return
-        ax.plot(df_sel['time'], df_sel[choice], linestyle='-')
+        ax.plot(df_daily['date'], df_daily[choice], linestyle='-')
         ax.set_ylabel(choice)
 
-    # --- Wind direction arrows (only for "All" or wind_direction column) ---
+    # --- Wind direction arrows ---
     if choice == "All" or choice == "wind_direction_10m (°)":
         if 'wind_direction_10m (°)' in df_sel.columns:
-            arrow_length = 0.04  # fraction of axis for arrow length
-            # Determine arrow positions
-            if start_month == end_month:
-                # Single month: one arrow per day (mean wind per day)
-                df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
-                arrow_dates = df_daily['time']
-                arrow_degs = df_daily['wind_direction_10m (°)']
-            else:
-                # Multiple months: evenly spaced arrows over subset, mean direction
-                total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
-                num_arrows = min(total_days, 20)
-                arrow_dates = pd.date_range(df_sel['time'].dt.date.min(), df_sel['time'].dt.date.max(), periods=num_arrows)
-                arrow_degs = [df_sel['wind_direction_10m (°)'].mean()] * len(arrow_dates)
+            arrow_length = 0.05  # fraction of axis (vertical)
+            total_days = (df_sel['date'].max() - df_sel['date'].min()).days + 1
+            max_arrows = 20  # max arrows to avoid clutter
 
-            # Draw arrows
-            for date, deg in zip(arrow_dates, arrow_degs):
-                rad = np.deg2rad(deg)
-                dx = arrow_length * np.sin(rad)
-                dy = arrow_length * np.cos(rad)
-                ax.annotate(
-                    '',
-                    xy=(date, 0.5),                 # start at vertical center
-                    xytext=(date, 0.5 + dy),        # endpoint based on arrow
-                    xycoords=('data', 'axes fraction'),
-                    textcoords=('data', 'axes fraction'),
-                    arrowprops=dict(
-                        facecolor='k',
-                        edgecolor='k',
-                        width=1,
-                        headwidth=6,
-                        headlength=6,
-                        shrink=0,
-                        mutation_scale=10
-                    ),
-                    annotation_clip=False
-                )
+            if start_month == end_month:
+                # One arrow per day: average per day
+                df_wind = df_sel.groupby('date')['wind_direction_10m (°)'].mean().reset_index()
+                for _, row in df_wind.iterrows():
+                    deg = row['wind_direction_10m (°)']
+                    rad = np.deg2rad(deg)
+                    ax.annotate(
+                        '',
+                        xy=(row['date'], 0.5 + arrow_length * np.cos(rad)),
+                        xytext=(row['date'], 0.5),
+                        xycoords=('data', 'axes fraction'),
+                        textcoords=('data', 'axes fraction'),
+                        arrowprops=dict(facecolor='k', edgecolor='k', width=1, headwidth=4, headlength=6)
+                    )
+            else:
+                # Multiple months: evenly spaced arrows, average wind direction for each segment
+                num_arrows = min(total_days, max_arrows)
+                dates = pd.date_range(df_sel['date'].min(), df_sel['date'].max(), periods=num_arrows)
+                for i, date in enumerate(dates):
+                    # Select all rows in this segment (closest day)
+                    mask = (df_sel['date'] >= date) & (df_sel['date'] < date + pd.Timedelta(days=1))
+                    if mask.any():
+                        mean_deg = df_sel.loc[mask, 'wind_direction_10m (°)'].mean()
+                    else:
+                        mean_deg = df_sel['wind_direction_10m (°)'].mean()
+                    rad = np.deg2rad(mean_deg)
+                    ax.annotate(
+                        '',
+                        xy=(date, 0.5 + arrow_length * np.cos(rad)),
+                        xytext=(date, 0.5),
+                        xycoords=('data', 'axes fraction'),
+                        textcoords=('data', 'axes fraction'),
+                        arrowprops=dict(facecolor='k', edgecolor='k', width=1, headwidth=4, headlength=6)
+                    )
 
     # Final formatting
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Date")
     ax.legend(loc='best', fontsize='small')
     ax.grid(True)
     fig.autofmt_xdate()
