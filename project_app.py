@@ -82,7 +82,7 @@ def page_data_table() -> None:
 # -----------------------------
 def page_plots() -> None:
     st.title("Interactive Plots")
-    st.write("Choose a column (or All) and a month-range to plot. Default month selection is January.")
+    st.write("Choose a variable (or All) and a month-range to plot")
 
     if 'time' not in df.columns:
         st.error("No 'time' column in CSV — this page requires a time column.")
@@ -90,7 +90,7 @@ def page_plots() -> None:
 
     # Column selectbox: allow "All" plus the data columns
     cols = [c for c in data_columns]
-    choice = st.selectbox("Select column to plot", ["All"] + cols, index=0)
+    choice = st.selectbox("Select variables to plot", ["All"] + cols, index=0)
 
     # Month selection slider
     month_options = list(range(1,13))
