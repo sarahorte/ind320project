@@ -126,7 +126,7 @@ def page_plots() -> None:
             st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
             st.dataframe(df_sel[choice].value_counts().rename_axis(choice).reset_index(name="count"))
             return
-        ax1.plot(df_sel['time'], df_sel[choice], marker='o', linestyle='-')
+        ax1.plot(df_sel['time'], df_sel[choice], linestyle='-')
         ax1.set_ylabel(choice)
 
     # Right y-axis for wind direction
