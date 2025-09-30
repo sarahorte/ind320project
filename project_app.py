@@ -133,11 +133,7 @@ def page_plots() -> None:
 
     # --- Wind direction arrows only ---
     if choice == "All" or choice == "wind_direction_10m (°)":
-        # Fix y-axis to a constant range
-        ax.set_ylim(-15, 25)  # consistent vertical space
-
-        # Max number of arrows to show
-        max_arrows = 31  
+        max_arrows = 31  # maximum number of arrows to display
 
         # Prepare daily mean for wind direction
         df_sel['date'] = df_sel['time'].dt.date
@@ -148,23 +144,33 @@ def page_plots() -> None:
             step = len(df_daily) // max_arrows + 1
             df_daily = df_daily.iloc[::step]
 
-        # Vertical center of the arrows
-        y_center = 5  # fixed middle of y-axis (-15 to 25) for all arrows
-
-        # Fixed arrow length (independent of y-axis scaling)
-        arrow_length = 2  # constant units, same size regardless of selected columns
+        # Draw arrows in axis coordinates (0-1)
+        arrow_length = 0.05  # fraction of axis
+        y_center = 0.5       # vertical center in axis coordinates
 
         for _, row in df_daily.iterrows():
             direction_deg = row['wind_direction_10m (°)']
-            direction_rad = np.deg2rad(direction_deg)
+            rad = np.deg2rad(direction_deg)
 
-            # Calculate dx/dy for arrow, independent of y-axis scale
-            dx = arrow_length * np.sin(direction_rad)
-            dy = arrow_length * np.cos(direction_rad)
+            # Start point in axis coords
+            x_start = (row['time'] - df_sel['time'].min()) / (df_sel['time'].max() - df_sel['time'].min())
 
-            # Draw arrow at y_center
-            ax.arrow(row['time'], y_center, dx, dy,
-                    head_width=0.8, head_length=0.8, fc='k', ec='k')
+            # Convert to float between 0–1 for ax.transAxes
+            x_start = x_start.total_seconds() / (x_start.total_seconds() if x_start.total_seconds() != 0 else 1)
+
+            # dx/dy in axis fraction
+            dx = arrow_length * np.sin(rad)
+            dy = arrow_length * np.cos(rad)
+
+            ax.annotate(
+                '', 
+                xy=(x_start + dx, y_center + dy), 
+                xytext=(x_start, y_center),
+                xycoords=ax.transAxes,
+                textcoords=ax.transAxes,
+                arrowprops=dict(facecolor='k', edgecolor='k', width=1, headwidth=4, headlength=6)
+            )
+
 
 
     # Final formatting
