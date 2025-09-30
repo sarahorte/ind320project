@@ -84,8 +84,7 @@ def page_data_table() -> None:
             label = "January (hourly)",
             help="Hourly time series for January (one row per original column).",
             # make the chart height a bit larger for better visibility
-            height=100,
-            width=300,
+            width=None,
             y_min=None,  # auto-scale
             y_max=None   # auto-scale
         )
