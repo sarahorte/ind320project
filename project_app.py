@@ -72,9 +72,10 @@ def page_data_table() -> None:
         # Include a small summary to help reading the table
         series_rows.append({
             "variable": col,
-            "mean (Jan)": pd.Series(series).mean() if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
-            "min (Jan)": pd.Series(series).min() if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
-            "max (Jan)": pd.Series(series).max() if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
+            #only one decimal for the mean, min, max. 
+            "mean (Jan)": pd.Series(series).mean().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
+            "min (Jan)": pd.Series(series).min().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
+            "max (Jan)": pd.Series(series).max().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
             "Jan": series  # a list — Streamlit's LineChartColumn renders lists as sparklines
         })
 
