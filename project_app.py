@@ -131,11 +131,9 @@ def page_plots() -> None:
         ax.plot(df_sel['time'], df_sel[choice], linestyle='-')
         ax.set_ylabel(choice)
 
-    # --- Wind direction arrows ---
+    # --- Wind direction arrows (fixed size, independent of y-axis scale) ---
     if 'wind_direction_10m (°)' in df_sel.columns:
-        fig.canvas.draw()  # ensures axis limits are updated
-        y_center = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2
-        arrow_length = 0.5  # adjust as needed
+        arrow_length = 0.05  # fraction of axis (0-1) for visual length
 
         total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
 
@@ -145,19 +143,31 @@ def page_plots() -> None:
             for _, row in df_daily.iterrows():
                 deg = row['wind_direction_10m (°)']
                 rad = np.deg2rad(deg)
-                dx = arrow_length * np.sin(rad)
-                dy = arrow_length * np.cos(rad)
-                ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
+            # Use annotation with axes fraction for dy
+                ax.annotate(
+                    '', 
+                    xy=(row['time'], 0.5),  # y=0.5 in axis fraction (vertical center)
+                    xytext=(row['time'], 0.5 + arrow_length*np.cos(rad)),
+                    xycoords=('data', 'axes fraction'),
+                    textcoords=('data', 'axes fraction'),
+                    arrowprops=dict(facecolor='k', edgecolor='k', width=1, headwidth=4, headlength=6)
+                )
         else:
-            # Multiple months: average over all selected days, show arrows spaced evenly
+            # Multiple months: mean over all selected days, spaced evenly
             mean_deg = df_sel['wind_direction_10m (°)'].mean()
             num_arrows = min(total_days, 20)
             dates = pd.date_range(df_sel['time'].dt.date.min(), df_sel['time'].dt.date.max(), periods=num_arrows)
             for date in dates:
                 rad = np.deg2rad(mean_deg)
-                dx = arrow_length * np.sin(rad)
-                dy = arrow_length * np.cos(rad)
-                ax.arrow(date, y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
+                ax.annotate(
+                    '',
+                    xy=(date, 0.5),
+                    xytext=(date, 0.5 + arrow_length*np.cos(rad)),
+                    xycoords=('data', 'axes fraction'),
+                    textcoords=('data', 'axes fraction'),
+                    arrowprops=dict(facecolor='k', edgecolor='k', width=1, headwidth=4, headlength=6)
+                )
+
 
     # Final formatting
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
