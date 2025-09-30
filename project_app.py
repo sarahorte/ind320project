@@ -82,19 +82,34 @@ def page_data_table() -> None:
 
     df_series = pd.DataFrame(series_rows).set_index("variable")
 
-    # Configure the Jan column to show a line chart inline (row-wise). 
-    column_config = {
-        "Jan": st.column_config.LineChartColumn(
-            label = "January (hourly)",
-            help="Hourly time series for January (one row per original column).",
-            # make the chart height a bit larger for better visibility
-            width=None,
-            y_min=None,  # auto-scale
-            y_max=None   # auto-scale
-        )
-    }
-    # make mean, min, max columns as narrow as possible for more space for the line chart
-    st.dataframe(df_series, column_config=column_config, use_container_width=True)
+# Configure column display
+column_config = {
+    "mean": st.column_config.NumberColumn(
+        label="Mean",
+        format="%.1f",    # one decimal
+        width="small"     # make as narrow as possible
+    ),
+    "min": st.column_config.NumberColumn(
+        label="Min",
+        format="%.1f",
+        width="small"
+    ),
+    "max": st.column_config.NumberColumn(
+        label="Max",
+        format="%.1f",
+        width="small"
+    ),
+    "Jan": st.column_config.LineChartColumn(
+        label="January (hourly)",
+        help="Hourly time series for January (one row per original column).",
+        y_min=None,  # auto-scale
+        y_max=None   # auto-scale
+    )
+}
+
+# Display dataframe with config
+st.dataframe(df_series, column_config=column_config, use_container_width=True)
+
 
 # -----------------------------
 # Page: Interactive plots
