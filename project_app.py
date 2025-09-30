@@ -73,14 +73,13 @@ def page_data_table() -> None:
         series_rows.append({
             "variable": col,
             #only one decimal for the mean, min, max. 
-            "mean (Jan)": pd.Series(series).mean().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
-            "min (Jan)": pd.Series(series).min().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
-            "max (Jan)": pd.Series(series).max().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
+            "mean": pd.Series(series).mean().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
+            "min": pd.Series(series).min().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
+            "max": pd.Series(series).max().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
             "Jan": series  # a list — Streamlit's LineChartColumn renders lists as sparklines
         })
     
-    # make mean, min, max columns as narrow as possible (only one decimal)
-    pd.set_option('display.precision', 1)
+
     df_series = pd.DataFrame(series_rows).set_index("variable")
 
     # Configure the Jan column to show a line chart inline (row-wise). 
@@ -94,7 +93,7 @@ def page_data_table() -> None:
             y_max=None   # auto-scale
         )
     }
-
+    # make mean, min, max columns as narrow as possible for more space for the line chart
     st.dataframe(df_series, column_config=column_config, use_container_width=True)
 
 # -----------------------------
