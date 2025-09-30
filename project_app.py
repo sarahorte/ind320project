@@ -131,17 +131,32 @@ def page_plots() -> None:
         ax.plot(df_sel['time'], df_sel[choice], marker='o', linestyle='-')
         ax.set_ylabel(choice)
 
-    # Wind direction arrows (optional)
+    # --- Wind direction arrows ---
     if 'wind_direction_10m (°)' in df_sel.columns:
-        arrow_every = max(len(df_sel)//20,1)  # reduce number of arrows
-        arrow_length = 0.5
         y_center = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2
-        for _, row in df_sel.iloc[::arrow_every].iterrows():
-            deg = row['wind_direction_10m (°)']
-            rad = np.deg2rad(deg)
-            dx = arrow_length * np.sin(rad)
-            dy = arrow_length * np.cos(rad)
-            ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
+        arrow_length = 0.5  # adjust as needed
+
+    # Single month: one arrow per day (average wind per day)
+        if start_month == end_month:
+            df_daily = df_sel.groupby(df_sel['time'].dt.date)['wind_direction_10m (°)'].mean().reset_index()
+            for _, row in df_daily.iterrows():
+                deg = row['wind_direction_10m (°)']
+                rad = np.deg2rad(deg)
+                dx = arrow_length * np.sin(rad)
+                dy = arrow_length * np.cos(rad)
+                ax.arrow(row['time'], y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
+
+    # Multiple months: average over the whole subset, arrows spaced evenly
+        else:
+            mean_deg = df_sel['wind_direction_10m (°)'].mean()  # mean over the whole subset
+            total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
+            num_arrows = min(total_days, 20)  # show up to 20 arrows to avoid clutter
+            dates = pd.date_range(df_sel['time'].dt.date.min(), df_sel['time'].dt.date.max(), periods=num_arrows)
+            for date in dates:
+               rad = np.deg2rad(mean_deg)
+               dx = arrow_length * np.sin(rad)
+               dy = arrow_length * np.cos(rad)
+               ax.arrow(date, y_center, dx, dy, head_width=0.3, head_length=0.3, fc='k', ec='k')
 
     ax.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
     ax.set_xlabel("Time")
