@@ -45,18 +45,15 @@ def page_data_table() -> None:
     st.title("Data Table — First month overview")
     st.write(
         "This page shows one row per variable. "
-        "The `Jan` column contains the January time series (row-wise) as a sparkline / line chart. "
-        "Mean, min, and max are highlighted for readability."
+        "The `Jan` column contains the January time series (row-wise) as a sparkline / line chart."
     )
 
     if 'time' not in df.columns:
         st.error("No 'time' column in CSV — this page requires a time column.")
         return
 
-    # Extract January rows
     df_jan = df[df['time'].dt.month == 1]
 
-    # Build a DataFrame with one row per variable; the 'Jan' cell is a list of hourly values
     series_rows = []
     for col in data_columns:
         series = df_jan[col].tolist()
@@ -71,68 +68,15 @@ def page_data_table() -> None:
 
     df_series = pd.DataFrame(series_rows).set_index("variable")
 
-    # Configure columns
     column_config = {
-        "mean": st.column_config.NumberColumn(
-            label="Mean",
-            format="%.1f",
-            width="small",
-            help="Average value in January"
-        ),
-        "min": st.column_config.NumberColumn(
-            label="Min",
-            format="%.1f",
-            width="small",
-            help="Minimum value in January"
-        ),
-        "max": st.column_config.NumberColumn(
-            label="Max",
-            format="%.1f",
-            width="small",
-            help="Maximum value in January"
-        ),
-        "Jan": st.column_config.LineChartColumn(
-            label="January (hourly)",
-            help="Hourly time series for January (one row per variable)",
-            y_min=None,
-            y_max=None
-        )
+        "mean": st.column_config.NumberColumn(label="Mean", format="%.1f", width="small"),
+        "min": st.column_config.NumberColumn(label="Min", format="%.1f", width="small"),
+        "max": st.column_config.NumberColumn(label="Max", format="%.1f", width="small"),
+        "Jan": st.column_config.LineChartColumn(label="January (hourly)", help="Hourly time series")
     }
 
-    # Optional: highlight min/max cells in color using st.data_editor
-    def highlight_cells(val, col_name):
-        """Return CSS style for cell based on value"""
-        if val is None:
-            return ""
-        if col_name == "mean":
-            if val == df_series["mean"].max():
-                return "background-color: #FFB6C1;"  # light red for highest mean
-            if val == df_series["mean"].min():
-                return "background-color: #ADD8E6;"  # light blue for lowest mean
-        if col_name == "min":
-            if val == df_series["min"].max():
-                return "background-color: #FFB6C1;"  # high minimum is notable
-            if val == df_series["min"].min():
-                return "background-color: #ADD8E6;"  # lowest minimum
-        if col_name == "max":
-            if val == df_series["max"].max():
-                return "background-color: #FFB6C1;"
-            if val == df_series["max"].min():
-                return "background-color: #ADD8E6;"
-        return ""
+    st.dataframe(df_series, column_config=column_config, use_container_width=True)
 
-    # Build style dict for st.data_editor
-    style_dict = {col: df_series[col].apply(lambda v: highlight_cells(v, col)) for col in ["mean", "min", "max"]}
-
-    # Display with highlighting
-    st.data_editor(
-        df_series,
-        column_config=column_config,
-        use_container_width=True,
-        disabled=True,   # read-only
-        hide_index=False,
-        column_styles=style_dict  # highlight min/max
-    )
 
 # -----------------------------
 # Page: Interactive plots
