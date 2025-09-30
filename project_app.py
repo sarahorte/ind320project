@@ -98,8 +98,8 @@ def page_plots() -> None:
     month_range = st.select_slider(
         "Select month range (inclusive)",
         options=month_options,
-        value=(1, 1),
-        format_func=lambda x: MONTH_NAMES.get(x, str(x))
+        value=(1, 1), # default to January
+        format_func=lambda x: MONTH_NAMES.get(x, str(x)) # show month names (Jan, Feb, ...)
     )
     if isinstance(month_range, int):
         month_range = (month_range, month_range)
@@ -121,7 +121,7 @@ def page_plots() -> None:
     if choice == "All":
         for col in plot_cols:
             ax.plot(df_sel['time'], df_sel[col], label=col)
-        ax.set_ylabel("Temperature / Wind / Wind Gusts")
+        ax.set_ylabel("Temperature / Wind / Wind Gusts / Precipitation")
     elif choice != 'wind_direction_10m (°)':
         if not pd.api.types.is_numeric_dtype(df_sel[choice]):
             st.warning(f"Column '{choice}' is not numeric. Showing value counts instead.")
@@ -135,7 +135,7 @@ def page_plots() -> None:
         if 'wind_direction_10m (°)' in df_sel.columns:
             arrow_length = 0.05  # fraction of axis (vertical)
             total_days = (df_sel['time'].dt.date.max() - df_sel['time'].dt.date.min()).days + 1
-            max_arrows = 20  # max arrows to avoid clutter
+            max_arrows = 31  # max arrows to avoid clutter
 
             if start_month == end_month:
                 # Single month: one arrow per day (daily mean)
