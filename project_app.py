@@ -43,10 +43,9 @@ def page_home():
 # Page: Data table (row-wise LineChartColumn for first month) with optional highlighting
 # -----------------------------
 def page_data_table() -> None:
-    st.title("Data Table — First month overview")
+    st.title("Data Table — January overview")
     st.write(
-        "This table shows the minimum, maximum, and mean values for each variable in January, with one row per variable. "
-        "The January (hourly) column contains the January time series as a line chart."
+        "This table shows the minimum, maximum and mean values for each variable in January. The January (hourly) column contains the January time series as a line chart."
     )
 
     if 'time' not in df.columns:
@@ -112,7 +111,7 @@ def page_plots() -> None:
         return
 
     # Prepare figure
-    fig, ax1 = plt.subplots(figsize=(12,6))
+    fig, ax1 = plt.subplots(figsize=(12,7))
 
     # Columns for left y-axis (exclude wind_direction)
     left_columns = [c for c in data_columns if c != 'wind_direction_10m (°)']
@@ -142,7 +141,7 @@ def page_plots() -> None:
         ax2.legend(loc='upper right')
 
     # Final formatting
-    ax1.set_title(f"Data for months ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
+    ax1.set_title(f"Data for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}")
     ax1.set_xlabel("Time")
     ax1.legend(loc='upper left', fontsize='small')
     ax1.grid(True)
@@ -154,7 +153,7 @@ def page_plots() -> None:
 # -----------------------------
 def page_extra() -> None:
     st.title("Extra / Placeholder")
-    st.write("This is a placeholder page. Add your extra analysis, conclusions, or models here.")
+    st.write("This is a placeholder page. Will be used for extra content later.")
 
 # -----------------------------
 # Create st.Page objects and navigation
