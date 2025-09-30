@@ -35,27 +35,16 @@ MONTH_NAMES = {i: pd.Timestamp(2020, i, 1).strftime("%b") for i in range(1,13)} 
 # -----------------------------
 # Page: Home
 # -----------------------------
-def page_home() -> None:
-    st.title("Home")
-    st.markdown(
-        """
-        **Welcome!**
-        Use the navigation on the left to explore:
-        - **Data**: see the imported CSV shown in a table (row-wise line charts for January)
-        - **Plots**: interactive plotting with column selection and month range
-        - **Extra 1 / Extra 2**: placeholders for future content
-        """
-    )
-    st.write("Your CSV has", df.shape[0], "rows and", df.shape[1], "columns.")
-    st.write("First 5 rows:")
-    st.dataframe(df.head())
-
 # -----------------------------
-# Page: Data table (row-wise LineChartColumn for first month)
+# Page: Data table (row-wise LineChartColumn for first month) with optional highlighting
 # -----------------------------
 def page_data_table() -> None:
     st.title("Data Table — First month overview")
-    st.write("This page shows one row per variable. The `Jan` column contains the January time series (row-wise) as a sparkline / line chart.")
+    st.write(
+        "This page shows one row per variable. "
+        "The `Jan` column contains the January time series (row-wise) as a sparkline / line chart. "
+        "Mean, min, and max are highlighted for readability."
+    )
 
     if 'time' not in df.columns:
         st.error("No 'time' column in CSV — this page requires a time column.")
@@ -64,52 +53,83 @@ def page_data_table() -> None:
     # Extract January rows
     df_jan = df[df['time'].dt.month == 1]
 
-    # Build a DataFrame with one row per variable; the 'jan_series' cell is a list of hourly values
+    # Build a DataFrame with one row per variable; the 'Jan' cell is a list of hourly values
     series_rows = []
     for col in data_columns:
-        # Safely convert column to list (if non-numeric it will still be shown)
         series = df_jan[col].tolist()
-        # Include a small summary to help reading the table
+        series_pd = pd.Series(series)
         series_rows.append({
             "variable": col,
-            #only one decimal for the mean, min, max. 
-            "mean": pd.Series(series).mean().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
-            "min": pd.Series(series).min().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
-            "max": pd.Series(series).max().round(1) if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
-            "Jan": series  # a list — Streamlit's LineChartColumn renders lists as sparklines
+            "mean": series_pd.mean().round(1) if pd.api.types.is_numeric_dtype(series_pd) else None,
+            "min": series_pd.min().round(1) if pd.api.types.is_numeric_dtype(series_pd) else None,
+            "max": series_pd.max().round(1) if pd.api.types.is_numeric_dtype(series_pd) else None,
+            "Jan": series
         })
-    
 
     df_series = pd.DataFrame(series_rows).set_index("variable")
 
-# Configure column display
-column_config = {
-    "mean": st.column_config.NumberColumn(
-        label="Mean",
-        format="%.1f",    # one decimal
-        width="small"     # make as narrow as possible
-    ),
-    "min": st.column_config.NumberColumn(
-        label="Min",
-        format="%.1f",
-        width="small"
-    ),
-    "max": st.column_config.NumberColumn(
-        label="Max",
-        format="%.1f",
-        width="small"
-    ),
-    "Jan": st.column_config.LineChartColumn(
-        label="January (hourly)",
-        help="Hourly time series for January (one row per original column).",
-        y_min=None,  # auto-scale
-        y_max=None   # auto-scale
+    # Configure columns
+    column_config = {
+        "mean": st.column_config.NumberColumn(
+            label="Mean",
+            format="%.1f",
+            width="small",
+            help="Average value in January"
+        ),
+        "min": st.column_config.NumberColumn(
+            label="Min",
+            format="%.1f",
+            width="small",
+            help="Minimum value in January"
+        ),
+        "max": st.column_config.NumberColumn(
+            label="Max",
+            format="%.1f",
+            width="small",
+            help="Maximum value in January"
+        ),
+        "Jan": st.column_config.LineChartColumn(
+            label="January (hourly)",
+            help="Hourly time series for January (one row per variable)",
+            y_min=None,
+            y_max=None
+        )
+    }
+
+    # Optional: highlight min/max cells in color using st.data_editor
+    def highlight_cells(val, col_name):
+        """Return CSS style for cell based on value"""
+        if val is None:
+            return ""
+        if col_name == "mean":
+            if val == df_series["mean"].max():
+                return "background-color: #FFB6C1;"  # light red for highest mean
+            if val == df_series["mean"].min():
+                return "background-color: #ADD8E6;"  # light blue for lowest mean
+        if col_name == "min":
+            if val == df_series["min"].max():
+                return "background-color: #FFB6C1;"  # high minimum is notable
+            if val == df_series["min"].min():
+                return "background-color: #ADD8E6;"  # lowest minimum
+        if col_name == "max":
+            if val == df_series["max"].max():
+                return "background-color: #FFB6C1;"
+            if val == df_series["max"].min():
+                return "background-color: #ADD8E6;"
+        return ""
+
+    # Build style dict for st.data_editor
+    style_dict = {col: df_series[col].apply(lambda v: highlight_cells(v, col)) for col in ["mean", "min", "max"]}
+
+    # Display with highlighting
+    st.data_editor(
+        df_series,
+        column_config=column_config,
+        use_container_width=True,
+        disabled=True,   # read-only
+        hide_index=False,
+        column_styles=style_dict  # highlight min/max
     )
-}
-
-# Display dataframe with config
-st.dataframe(df_series, column_config=column_config, use_container_width=True)
-
 
 # -----------------------------
 # Page: Interactive plots
