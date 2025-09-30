@@ -19,8 +19,8 @@ def load_data(csv_path: str = "open-meteo-subset.csv") -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     # Ensure a datetime column and a 'date' column for grouping
     if 'time' in df.columns:
-        df['time'] = pd.to_datetime(df['time'])
-        df['date'] = df['time'].dt.date
+        df['time'] = pd.to_datetime(df['time']) 
+        df['date'] = df['time'].dt.date # extract date part for daily grouping
     return df
 
 df = load_data()
@@ -30,13 +30,13 @@ data_columns = [c for c in df.columns if c not in ['time', 'date']]
 numeric_columns = df.select_dtypes(include='number').columns.tolist()
 
 # Helper: month name mapping
-MONTH_NAMES = {i: pd.Timestamp(2020, i, 1).strftime("%b") for i in range(1,13)}
+MONTH_NAMES = {i: pd.Timestamp(2020, i, 1).strftime("%b") for i in range(1,13)} # map 1->Jan, 2->Feb, etc.
 
 # -----------------------------
 # Page: Home
 # -----------------------------
 def page_home() -> None:
-    st.title("IND320 — Project app (Home)")
+    st.title("Home")
     st.markdown(
         """
         **Welcome!**
@@ -72,7 +72,6 @@ def page_data_table() -> None:
         # Include a small summary to help reading the table
         series_rows.append({
             "variable": col,
-            "count (Jan)": len(series),
             "mean (Jan)": pd.Series(series).mean() if len(series) > 0 and pd.api.types.is_numeric_dtype(pd.Series(series)) else None,
             "Jan": series  # a list — Streamlit's LineChartColumn renders lists as sparklines
         })
