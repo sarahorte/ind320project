@@ -72,7 +72,7 @@ def page_data_table() -> None:
         "mean": st.column_config.NumberColumn(label="Mean", format="%.1f", width="small"),
         "min": st.column_config.NumberColumn(label="Min", format="%.1f", width="small"),
         "max": st.column_config.NumberColumn(label="Max", format="%.1f", width="small"),
-        "Jan": st.column_config.LineChartColumn(label="January (hourly)", help="Hourly time series")
+        "Jan": st.column_config.LineChartColumn(label="January (hourly)", help="Hourly time series", width="large", y_min=None, y_max=None)
     }
 
     st.dataframe(df_series, column_config=column_config, use_container_width=True)
