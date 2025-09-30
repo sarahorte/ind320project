@@ -120,7 +120,7 @@ def page_plots() -> None:
     if choice == "All":
         for col in left_columns:
             ax1.plot(df_sel['time'], df_sel[col], label=col)
-        ax1.set_ylabel("Temperature / Wind / Wind Gusts")
+        ax1.set_ylabel("Temperature (°C) / Wind (m/s) / Wind Gusts (m/s)")
     elif choice != 'wind_direction_10m (°)':
         # Single numeric column
         if not pd.api.types.is_numeric_dtype(df_sel[choice]):
@@ -136,13 +136,13 @@ def page_plots() -> None:
         # Optionally, average per day for smoother lines
         df_sel['date'] = df_sel['time'].dt.date
         df_daily = df_sel.groupby('date')['wind_direction_10m (°)'].mean().reset_index()
-        ax2.plot(df_daily['date'], df_daily['wind_direction_10m (°)'], color='orange', marker='o', label='Wind Direction')
+        ax2.plot(df_daily['date'], df_daily['wind_direction_10m (°)'], color='orange', label='Wind Direction')
         ax2.set_ylabel("Wind Direction (°)")
         ax2.set_ylim(0, 360)  # wind direction in degrees
         ax2.legend(loc='upper right')
 
     # Final formatting
-    ax1.set_title(f"Data for months {start_month}–{end_month} ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
+    ax1.set_title(f"Data for months ({MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]})")
     ax1.set_xlabel("Time")
     ax1.legend(loc='upper left', fontsize='small')
     ax1.grid(True)
