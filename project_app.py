@@ -124,10 +124,10 @@ def page_plots() -> None:
         ax1.plot(df_sel['time'], df_sel[choice], linestyle='-')
         ax1.set_ylabel(choice)
 
-    # Right y-axis for wind direction
+    # Right y-axis for wind direction. want the color to be discrete and not to visable. whats a good color.
     if 'wind_direction_10m (°)' in df_sel.columns and (choice == "All" or choice == 'wind_direction_10m (°)'):
         ax2 = ax1.twinx()
-        ax2.plot(df_sel['time'], df_sel['wind_direction_10m (°)'], color='yellow', label='Wind Direction')
+        ax2.plot(df_sel['time'], df_sel['wind_direction_10m (°)'], color='lightgray', label='Wind Direction')
         ax2.set_ylabel("Wind Direction (°)")
         ax2.set_ylim(0, 360)  # wind direction in degrees
         ax2.legend(loc='upper right')
