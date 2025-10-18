@@ -5,6 +5,24 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+# -----------------------------
+# Part 2: MongoDB connection
+# -----------------------------
+import streamlit as st
+from pymongo.mongo_client import MongoClient
+
+user = st.secrets["mongodb"]["user"]
+pwd = st.secrets["mongodb"]["password"]
+cluster = st.secrets["mongodb"]["cluster"]
+dbname = st.secrets["mongodb"]["dbname"]
+
+uri = f"mongodb+srv://{user}:{pwd}@{cluster}/?retryWrites=true&w=majority"
+client = MongoClient(uri)
+db = client[dbname]
+collection = db['production_data']
+
+
 # -----------------------------
 # Load data (cached)
 # -----------------------------
@@ -24,6 +42,8 @@ data_columns = [c for c in df.columns if c not in ['time', 'date']]
 
 # Helper: month name mapping
 MONTH_NAMES = {i: pd.Timestamp(2020, i, 1).strftime("%b") for i in range(1,13)} # map 1->Jan, 2->Feb, etc.
+
+
 
 # -----------------------------
 # Page: Home
@@ -141,94 +161,55 @@ def page_plots() -> None:
     fig.autofmt_xdate()
     st.pyplot(fig)
 
-# -----------------------------
-# Page: Extra placeholder
-# -----------------------------
-def page_extra() -> None:
-    st.title("Extra / Placeholder")
-    st.write("This is a placeholder page. Will be used for extra content later.")
-
-# -----------------------------
-# Create st.Page objects and navigation
-# -----------------------------
-pg_home = st.Page(page_home, title="Home", icon="🏠")
-pg_data = st.Page(page_data_table, title="Data", icon="📋")
-pg_plots = st.Page(page_plots, title="Plots", icon="📈")
-pg_extra = st.Page(page_extra, title="Extra", icon="⚙️")
-
-# The navigation object builds the UI and runs the selected page.
-nav = st.navigation(pages=[pg_home, pg_data, pg_plots, pg_extra])
-nav.run()
-
-
-
-# -----------------------------
-# Part 2
-# -----------------------------
-# Establish a connection to a MongoDB database
-import streamlit as st
-from pymongo.mongo_client import MongoClient
-
-# Access secrets
-user = st.secrets["mongodb"]["user"]
-pwd = st.secrets["mongodb"]["password"]
-cluster = st.secrets["mongodb"]["cluster"]
-dbname = st.secrets["mongodb"]["dbname"]
-
-# Connect to MongoDB
-uri = f"mongodb+srv://{user}:{pwd}@{cluster}/?retryWrites=true&w=majority"
-client = MongoClient(uri)
-db = client[dbname]
-collection = db['production_data']  # or whatever collection
-st.write("Connected to MongoDB database:", dbname)
-
 
 # -----------------------------
 # Page: Extra / MongoDB & Pie Chart
 # -----------------------------
 def page_extra() -> None:
-    st.title("Extra / MongoDB & Pie Chart")
+    st.title("Production Data by Price Area")
 
-    # Split page into two columns
     col1, col2 = st.columns(2)
 
-    # -----------------------------
     # Left column: select price area
-    # -----------------------------
     with col1:
-        st.subheader("Select Price Area")
-        price_areas = ["NO1", "NO2", "NO3", "NO4", "NO5"]  # adjust if needed
-        selected_area = st.radio("Price Area:", price_areas)
+        price_areas = collection.distinct("pricearea")  # get all unique price areas
+        selected_area = st.radio("Select Price Area", price_areas)
 
-    # -----------------------------
-    # Right column: pie chart
-    # -----------------------------
+    # Right column: show pie chart for selected price area
     with col2:
-        st.subheader("Total Production by Group")
+        # Fetch data from MongoDB
+        data = list(collection.find({"pricearea": selected_area}))
+        if data:
+            df_area = pd.DataFrame(data)
+            df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
 
-        # Query MongoDB for the selected price area
-        docs = list(collection.find({"pricearea": selected_area}))
-        if not docs:
-            st.warning(f"No data found for {selected_area}")
-            return
+            import plotly.express as px
+            fig = px.pie(
+                df_grouped, 
+                values="quantitykwh", 
+                names="productiongroup",
+                title=f"Total Production for {selected_area}"
+            )
+            st.plotly_chart(fig)
+        else:
+            st.write("No data found for this price area.")
 
-        # Convert to DataFrame
-        df_area = pd.DataFrame(docs)
 
-        # Aggregate production by group
-        df_pie = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
+# -----------------------------
+# Page navigation
+# -----------------------------
+PAGES = {
+    "Home 🏠": page_home,
+    "Data 📋": page_data_table,
+    "Plots 📈": page_plots,
+    "Production by Area ⚙️": page_extra
+}
 
-        # Plot pie chart using Plotly
-        import plotly.express as px
-        fig = px.pie(
-            df_pie,
-            values="quantitykwh",
-            names="productiongroup",
-            title=f"Total Production by Group for {selected_area}"
-        )
-        st.plotly_chart(fig, use_container_width=True)
+st.sidebar.title("Navigation")
+selection = st.sidebar.radio("Go to", list(PAGES.keys()))
 
-    # -----------------------------
-    # Connection check
-    # -----------------------------
-    st.write("MongoDB connection works! Collection has", collection.count_documents({}), "documents.")
+# Call the selected page function
+page = PAGES[selection]
+page()
+
+
