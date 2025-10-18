@@ -159,3 +159,76 @@ pg_extra = st.Page(page_extra, title="Extra", icon="⚙️")
 # The navigation object builds the UI and runs the selected page.
 nav = st.navigation(pages=[pg_home, pg_data, pg_plots, pg_extra])
 nav.run()
+
+
+
+# -----------------------------
+# Part 2
+# -----------------------------
+# Establish a connection to a MongoDB database
+import streamlit as st
+from pymongo.mongo_client import MongoClient
+
+# Access secrets
+user = st.secrets["mongodb"]["user"]
+pwd = st.secrets["mongodb"]["password"]
+cluster = st.secrets["mongodb"]["cluster"]
+dbname = st.secrets["mongodb"]["dbname"]
+
+# Connect to MongoDB
+uri = f"mongodb+srv://{user}:{pwd}@{cluster}/?retryWrites=true&w=majority"
+client = MongoClient(uri)
+db = client[dbname]
+collection = db['production_data']  # or whatever collection
+st.write("Connected to MongoDB database:", dbname)
+
+
+# -----------------------------
+# Page: Extra / MongoDB & Pie Chart
+# -----------------------------
+def page_extra() -> None:
+    st.title("Extra / MongoDB & Pie Chart")
+
+    # Split page into two columns
+    col1, col2 = st.columns(2)
+
+    # -----------------------------
+    # Left column: select price area
+    # -----------------------------
+    with col1:
+        st.subheader("Select Price Area")
+        price_areas = ["NO1", "NO2", "NO3", "NO4", "NO5"]  # adjust if needed
+        selected_area = st.radio("Price Area:", price_areas)
+
+    # -----------------------------
+    # Right column: pie chart
+    # -----------------------------
+    with col2:
+        st.subheader("Total Production by Group")
+
+        # Query MongoDB for the selected price area
+        docs = list(collection.find({"pricearea": selected_area}))
+        if not docs:
+            st.warning(f"No data found for {selected_area}")
+            return
+
+        # Convert to DataFrame
+        df_area = pd.DataFrame(docs)
+
+        # Aggregate production by group
+        df_pie = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
+
+        # Plot pie chart using Plotly
+        import plotly.express as px
+        fig = px.pie(
+            df_pie,
+            values="quantitykwh",
+            names="productiongroup",
+            title=f"Total Production by Group for {selected_area}"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # -----------------------------
+    # Connection check
+    # -----------------------------
+    st.write("MongoDB connection works! Collection has", collection.count_documents({}), "documents.")
