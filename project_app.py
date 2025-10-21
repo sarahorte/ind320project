@@ -237,7 +237,7 @@ def page_extra() -> None:
 pg_home = st.Page(page_home, title="Home", icon="🏠")
 pg_data = st.Page(page_data_table, title="Data", icon="📋")
 pg_plots = st.Page(page_plots, title="Plots", icon="📈")
-pg_extra = st.Page(page_extra, title="Extra", icon="⚙️")
+pg_extra = st.Page(page_extra, title="Energy Production", icon="⚙️")
 
 # The navigation object builds the UI and runs the selected page.
 nav = st.navigation(pages=[pg_home, pg_data, pg_plots, pg_extra])
