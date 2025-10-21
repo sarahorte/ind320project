@@ -176,22 +176,22 @@ def page_extra() -> None:
         price_areas = collection.distinct("pricearea")  # get all unique price areas
         selected_area = st.radio("Select Price Area", price_areas)
 
-    # show pie chart for selected price area in the left column
-    data = list(collection.find({"pricearea": selected_area}))
-    if data:
-        df_area = pd.DataFrame(data)
-        df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
+        # show pie chart for selected price area in the left column
+        data = list(collection.find({"pricearea": selected_area}))
+        if data:
+            df_area = pd.DataFrame(data)
+            df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
 
-        import plotly.express as px
-        fig = px.pie(
-            df_grouped,
-            values="quantitykwh",
-            names="productiongroup",
-            title=f"Total Production for {selected_area}"
-        )
-        st.plotly_chart(fig)
-    else:
-        st.write("No data found for this price area.")
+            import plotly.express as px
+            fig = px.pie(
+                df_grouped,
+                values="quantitykwh",
+                names="productiongroup",
+                title=f"Total Production for {selected_area}"
+            )
+            st.plotly_chart(fig)
+        else:
+            st.write("No data found for this price area.")
 
     # On the right side, use pills (st.pills) to select which production groups to include and a selection element of your choice to select a month. Combine the price area, production group(s) and month, and display a line plot like in the Jupyter Notebook (but for any month).
     with col2:
