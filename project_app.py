@@ -227,6 +227,10 @@ def page_extra() -> None:
         else:
             st.write("No data found for the selected filters.")
 
+    # Below the columns, insert an expander (st.expander) where you briefly document the source of the data shown on the page.
+    with st.expander("Data Source"):
+        st.write("The data displayed on this page is sourced from the MongoDB database, specifically from the 'production' collection, from https://api.elhub.no and visualized using Plotly for interactive charts.")
+
 # -----------------------------
 # Create st.Page objects and navigation
 # -----------------------------
