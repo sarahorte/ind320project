@@ -193,6 +193,40 @@ def page_extra() -> None:
     else:
         st.write("No data found for this price area.")
 
+    # On the right side, use pills (st.pills) to select which production groups to include and a selection element of your choice to select a month. Combine the price area, production group(s) and month, and display a line plot like in the Jupyter Notebook (but for any month).
+    with col2:
+        production_groups = collection.distinct("productiongroup")
+        selected_groups = st.multiselect("Select Production Groups", production_groups, default=production_groups)
+
+        month = st.selectbox("Select Month", list(MONTH_NAMES.values()), index=0)
+        month_num = [k for k,v in MONTH_NAMES.items() if v == month][0]
+
+        # Query MongoDB with the selected filters
+        query = {
+            "pricearea": selected_area,
+            "productiongroup": {"$in": selected_groups},
+            "starttime": {
+                "$gte": pd.Timestamp(2021, month_num, 1),
+                "$lt": pd.Timestamp(2021, month_num + 1, 1) if month_num < 12 else pd.Timestamp(2022, 1, 1)
+            }
+        }
+        data_filtered = list(collection.find(query))
+        if data_filtered:
+            df_filtered = pd.DataFrame(data_filtered)
+            df_filtered['starttime'] = pd.to_datetime(df_filtered['starttime'])
+            df_grouped_time = df_filtered.groupby(['starttime', 'productiongroup'])['quantitykwh'].sum().reset_index()
+
+            fig2 = px.line(
+                df_grouped_time,
+                x='starttime',
+                y='quantitykwh',
+                color='productiongroup',
+                title=f"Production in {selected_area} for {month}"
+            )
+            st.plotly_chart(fig2)
+        else:
+            st.write("No data found for the selected filters.")
+
 # -----------------------------
 # Create st.Page objects and navigation
 # -----------------------------
