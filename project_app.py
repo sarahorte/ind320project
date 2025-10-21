@@ -229,7 +229,7 @@ def page_extra() -> None:
 
     # Below the columns, insert an expander (st.expander) where you briefly document the source of the data shown on the page.
     with st.expander("Data Source"):
-        st.write("The data displayed on this page is sourced from the MongoDB database, specifically from the 'production' collection. The Elhub API was used to retrieve hourly production data for all price areas using PRODUCTION_PER_GROUP_MBA_HOUR for all days and hours of the year 2021.")
+        st.write("The data displayed on this page is sourced from the MongoDB database. The Elhub API was used to retrieve hourly production data for all price areas using PRODUCTION_PER_GROUP_MBA_HOUR for all days and hours of the year 2021.")
 
 # -----------------------------
 # Create st.Page objects and navigation
