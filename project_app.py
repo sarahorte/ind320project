@@ -167,7 +167,7 @@ def page_plots() -> None:
 # -----------------------------
 # On page four, split the view into two columns using st.columns.
 def page_extra() -> None:
-    st.title("Extra Features")
+    st.title("Energy Production in 2021 by Price Area and Production Group")
 
     col1, col2 = st.columns(2)
 
@@ -229,7 +229,7 @@ def page_extra() -> None:
 
     # Below the columns, insert an expander (st.expander) where you briefly document the source of the data shown on the page.
     with st.expander("Data Source"):
-        st.write("The data displayed on this page is sourced from the MongoDB database, specifically from the 'production' collection, from https://api.elhub.no and visualized using Plotly for interactive charts.")
+        st.write("The data displayed on this page is sourced from the MongoDB database, specifically from the 'production' collection. The Elhub API was used to retrieve hourly production data for all price areas using PRODUCTION_PER_GROUP_MBA_HOUR for all days and hours of the year 2021.")
 
 # -----------------------------
 # Create st.Page objects and navigation
