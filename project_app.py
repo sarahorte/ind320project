@@ -198,18 +198,17 @@ def page_extra() -> None:
 # -----------------------------
 # Page navigation
 # -----------------------------
-PAGES = {
-    "Home 🏠": page_home,
-    "Data 📋": page_data_table,
-    "Plots 📈": page_plots,
-    "Production by Area ⚙️": page_extra
-}
+# -----------------------------
+# Create st.Page objects and navigation
+# -----------------------------
+pg_home = st.Page(page_home, title="Home", icon="🏠")
+pg_data = st.Page(page_data_table, title="Data", icon="📋")
+pg_plots = st.Page(page_plots, title="Plots", icon="📈")
+pg_extra = st.Page(page_extra, title="Extra", icon="⚙️")
 
-st.sidebar.title("Navigation")
-selection = st.sidebar.radio("Go to", list(PAGES.keys()))
+# The navigation object builds the UI and runs the selected page.
+nav = st.navigation(pages=[pg_home, pg_data, pg_plots, pg_extra])
+nav.run()
 
-# Call the selected page function
-page = PAGES[selection]
-page()
 
 
