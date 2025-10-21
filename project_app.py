@@ -165,39 +165,34 @@ def page_plots() -> None:
 # -----------------------------
 # Page: Extra / MongoDB & Pie Chart
 # -----------------------------
+# On page four, split the view into two columns using st.columns.
 def page_extra() -> None:
-    st.title("Production Data by Price Area")
+    st.title("Extra Features")
 
     col1, col2 = st.columns(2)
 
-    # Left column: select price area
+    # Left column: use radio buttons (st.radio) to select a price area and display a pie chart like in the Jupyter Notebook
     with col1:
         price_areas = collection.distinct("pricearea")  # get all unique price areas
         selected_area = st.radio("Select Price Area", price_areas)
 
-    # Right column: show pie chart for selected price area
-    with col2:
-        # Fetch data from MongoDB
-        data = list(collection.find({"pricearea": selected_area}))
-        if data:
-            df_area = pd.DataFrame(data)
-            df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
+    # show pie chart for selected price area in the left column
+    data = list(collection.find({"pricearea": selected_area}))
+    if data:
+        df_area = pd.DataFrame(data)
+        df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
 
-            import plotly.express as px
-            fig = px.pie(
-                df_grouped, 
-                values="quantitykwh", 
-                names="productiongroup",
-                title=f"Total Production for {selected_area}"
-            )
-            st.plotly_chart(fig)
-        else:
-            st.write("No data found for this price area.")
+        import plotly.express as px
+        fig = px.pie(
+            df_grouped,
+            values="quantitykwh",
+            names="productiongroup",
+            title=f"Total Production for {selected_area}"
+        )
+        st.plotly_chart(fig)
+    else:
+        st.write("No data found for this price area.")
 
-
-# -----------------------------
-# Page navigation
-# -----------------------------
 # -----------------------------
 # Create st.Page objects and navigation
 # -----------------------------
