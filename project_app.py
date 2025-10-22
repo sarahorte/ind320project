@@ -196,8 +196,16 @@ def page_extra() -> None:
     # On the right side, use pills (st.pills) to select which production groups to include and a selection element of your choice to select a month. Combine the price area, production group(s) and month, and display a line plot like in the Jupyter Notebook (but for any month).
     with col2:
         production_groups = collection.distinct("productiongroup")
-        production_groups = [str(g) for g in production_groups]  # force strings
-        selected_groups = st.pills("Select Production Groups", production_groups, default=production_groups)
+        # Ensure production_groups is a proper list
+        production_groups = list(production_groups)  # from MongoDB, make sure it's a list
+
+        # Multi-select pills widget
+        selected_groups = st.pills(
+            label="Select Production Groups",
+            options=production_groups,
+            selection_mode="multi",
+            default=production_groups  # default to all selected
+        )
 
         month = st.selectbox("Select Month", list(MONTH_NAMES.values()), index=0)
         month_num = [k for k,v in MONTH_NAMES.items() if v == month][0]
