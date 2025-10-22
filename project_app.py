@@ -163,7 +163,7 @@ def page_plots() -> None:
 
 
 # -----------------------------
-# Page: Extra / MongoDB & Pie Chart
+# Page: Energy Production
 # -----------------------------
 # On page four, split the view into two columns using st.columns.
 def page_extra() -> None:
@@ -196,7 +196,7 @@ def page_extra() -> None:
     # On the right side, use pills (st.pills) to select which production groups to include and a selection element of your choice to select a month. Combine the price area, production group(s) and month, and display a line plot like in the Jupyter Notebook (but for any month).
     with col2:
         production_groups = collection.distinct("productiongroup")
-        selected_groups = st.multiselect("Select Production Groups", production_groups, default=production_groups)
+        selected_groups = st.pills("Select Production Groups", production_groups, default=production_groups)
 
         month = st.selectbox("Select Month", list(MONTH_NAMES.values()), index=0)
         month_num = [k for k,v in MONTH_NAMES.items() if v == month][0]
