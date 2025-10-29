@@ -260,8 +260,56 @@ def page_plots():
 # Page newB: Outlier & Anomaly (skeleton)
 # -----------------------------
 def page_newB():
-    st.title("Outlier & Anomaly Detection")
-    st.write("To be implemented: SPC and LOF analysis for selected_area weather data.")
+
+    st.title("Outlier and Anomaly Detection")
+
+    selected_area = st.session_state.get("selected_area", "NO1")
+    df_weather = load_weather_data(selected_area)
+
+    if df_weather.empty:
+        st.warning(f"No weather data for {selected_area}")
+        return
+
+    tabs = st.tabs(["SPC Outlier Detection", "Precipitation Anomaly Detection (LOF)"])
+
+    # -------------------- Tab 1: SPC Outlier Detection --------------------
+    with tabs[0]:
+        st.subheader(f"SPC Outlier Detection for {selected_area}")
+        # Let user select variable and parameters
+        numeric_cols = df_weather.select_dtypes(include='number').columns.tolist()
+        if not numeric_cols:
+            st.warning("No numeric weather variables available for SPC analysis.")
+        else:
+            var_choice = st.selectbox("Select variable", numeric_cols, index=0)
+            cutoff_frac = st.slider("DCT cutoff fraction", 0.01, 0.1, 0.05, 0.01)
+            k = st.slider("SPC k parameter", 1, 5, 3, 1)
+
+            series = df_weather[var_choice].dropna()
+            fig_spc, summary_spc = spc_outlier_plotly(series, cutoff_frac=cutoff_frac, k=k,
+                                                      title=f"{var_choice} SPC Outlier Detection")
+            st.plotly_chart(fig_spc, use_container_width=True)
+
+            st.markdown("**SPC Summary:**")
+            st.json(summary_spc)
+
+    # -------------------- Tab 2: Precipitation Anomaly Detection (LOF) --------------------
+    with tabs[1]:
+        st.subheader(f"Precipitation Anomaly Detection (LOF) for {selected_area}")
+        if "precipitation" not in df_weather.columns:
+            st.warning("No precipitation data available for LOF analysis.")
+        else:
+            contamination = st.slider("Contamination fraction", 0.001, 0.05, 0.01, 0.001)
+            n_neighbors = st.slider("LOF neighbors", 5, 50, 20, 1)
+
+            series_precip = df_weather["precipitation"].dropna()
+            fig_lof, summary_lof = lof_precipitation_plotly(series_precip, contamination=contamination,
+                                                            n_neighbors=n_neighbors,
+                                                            title="Precipitation Anomalies (LOF)")
+            st.plotly_chart(fig_lof, use_container_width=True)
+
+            st.markdown("**LOF Summary:**")
+            st.json(summary_lof)
+
 
 # -----------------------------
 # Navigation
