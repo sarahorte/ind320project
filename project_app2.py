@@ -623,6 +623,10 @@ def page_newB():
 
             st.markdown("**LOF Summary:**")
             st.json(summary_lof)
+            # Present the summary as a table
+            st.write("### Summary Table")
+            summary_df = pd.DataFrame.from_dict(summary_lof, orient='index', columns=['Value'])
+            st.table(summary_df)
 
 
 # -----------------------------
