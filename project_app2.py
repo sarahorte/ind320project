@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
-
+from CA3 import spc_outlier_plotly, lof_precipitation_plotly, matplotlib_spectrogram
 # -----------------------------
 # Part 2: MongoDB connection
 # -----------------------------
