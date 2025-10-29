@@ -1,9 +1,11 @@
-streamlit
-pandas
 numpy
+pandas
 matplotlib
 plotly
-pymongo
-requests_cache
-retry_requests
+scipy
+scikit-learn
 openmeteo-requests
+requests-cache
+retry-requests
+pymongo
+streamlit
