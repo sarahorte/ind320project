@@ -168,6 +168,7 @@ def page_newA():
 def page_data_table():
     st.title("Weather Data — January Overview")
 
+    selected_area = st.session_state.get("selected_area", "NO1") # Default to NO1 if not set
     # Get the city corresponding to the selected area
     city_name = df_price_areas.loc[df_price_areas['price_area'] == selected_area, 'city'].values[0]
 
@@ -176,7 +177,7 @@ def page_data_table():
     f"The January (hourly) column contains the January time series for the selected area: {selected_area} ({city_name})."
     )
 
-    selected_area = st.session_state.get("selected_area", "NO1") # Default to NO1 if not set
+    
     df_weather = load_weather_data(selected_area)
     if df_weather.empty:
         st.warning(f"No weather data for {selected_area}")
