@@ -594,7 +594,7 @@ def page_newB():
             st.warning("No numeric weather variables available for SPC analysis.")
         else:
             var_choice = st.selectbox("Select variable", numeric_cols, index=0)
-            cutoff_frac = st.slider("DCT cutoff fraction", 0.01, 0.1, 0.05, 0.01)
+            cutoff_frac = st.slider("DCT cutoff fraction", 0.001, 0.2, 0.05, 0.001)
             k = st.slider("SPC k parameter (σ multiplier)", 0.5, 6.0, 3.0, 0.1)
 
             series = df_weather[var_choice].dropna()
