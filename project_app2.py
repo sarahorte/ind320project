@@ -54,6 +54,90 @@ def page_home():
 
 
 # -----------------------------
+# Page: Energy Production
+# -----------------------------
+# On page four, split the view into two columns using st.columns.
+def page_extra() -> None:
+    st.title("Energy Production in 2021 by Price Area and Production Group")
+
+    col1, col2 = st.columns(2)
+
+    # Left column: use radio buttons (st.radio) to select a price area and display a pie chart like in the Jupyter Notebook
+    with col1:
+        price_areas = collection.distinct("pricearea")  # get all unique price areas
+        selected_area = st.radio("Select Price Area", price_areas)
+
+        # show pie chart for selected price area in the left column
+        data = list(collection.find({"pricearea": selected_area}))
+        if data:
+            df_area = pd.DataFrame(data)
+            df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
+
+            import plotly.express as px
+            fig = px.pie(
+                df_grouped,
+                values="quantitykwh",
+                names="productiongroup",
+                title=f"Total Production for {selected_area}"
+            )
+            st.plotly_chart(fig)
+        else:
+            st.write("No data found for this price area.")
+
+    # On the right side, use pills (st.pills) to select which production groups to include and a selection element of your choice to select a month. Combine the price area, production group(s) and month, and display a line plot like in the Jupyter Notebook (but for any month).
+    with col2:
+        production_groups = collection.distinct("productiongroup")
+        # Ensure production_groups is a proper list
+        production_groups = list(production_groups)  # from MongoDB, make sure it's a list
+
+        # Multi-select pills widget
+        selected_groups = st.pills(
+            label="Select Production Groups",
+            options=production_groups,
+            selection_mode="multi",
+            default=production_groups  # default to all selected
+        )
+
+        month = st.selectbox("Select Month", list(MONTH_NAMES.values()), index=0)
+        month_num = [k for k,v in MONTH_NAMES.items() if v == month][0]
+
+        # Query MongoDB with the selected filters
+        query = {
+            "pricearea": selected_area,
+            "productiongroup": {"$in": selected_groups},
+            "starttime": {
+                "$gte": pd.Timestamp(2021, month_num, 1),
+                "$lt": pd.Timestamp(2021, month_num + 1, 1) if month_num < 12 else pd.Timestamp(2022, 1, 1)
+            }
+        }
+        data_filtered = list(collection.find(query))
+        if data_filtered:
+            df_filtered = pd.DataFrame(data_filtered)
+            df_filtered['starttime'] = pd.to_datetime(df_filtered['starttime'])
+            df_grouped_time = df_filtered.groupby(['starttime', 'productiongroup'])['quantitykwh'].sum().reset_index()
+
+            fig2 = px.line(
+                df_grouped_time,
+                x='starttime',
+                y='quantitykwh',
+                color='productiongroup',
+                title=f"Production in {selected_area} for {month}"
+            )
+            st.plotly_chart(fig2)
+        else:
+            st.write("No data found for the selected filters.")
+
+    # Below the columns, insert an expander (st.expander) where you briefly document the source of the data shown on the page.
+    with st.expander("Data Source"):
+        st.write("The data displayed on this page is sourced from the MongoDB database. The Elhub API was used to retrieve hourly production data for all price areas using PRODUCTION_PER_GROUP_MBA_HOUR for all days and hours of the year 2021.")
+
+
+# -----------------------------
+# newA Page: STL & Spectrogram
+def page_newA() -> None:
+    st.title("STL Decomposition and Spectrogram")
+    
+# -----------------------------
 # Page: Data table (row-wise LineChartColumn for first month) with optional highlighting
 # -----------------------------
 def page_data_table() -> None:
@@ -163,82 +247,10 @@ def page_plots() -> None:
 
 
 # -----------------------------
-# Page: Energy Production
-# -----------------------------
-# On page four, split the view into two columns using st.columns.
-def page_extra() -> None:
-    st.title("Energy Production in 2021 by Price Area and Production Group")
+# newB Page: Outlier & Anomaly  
+def page_newB() -> None:
+    st.title("Outlier and Anomaly Detection")
 
-    col1, col2 = st.columns(2)
-
-    # Left column: use radio buttons (st.radio) to select a price area and display a pie chart like in the Jupyter Notebook
-    with col1:
-        price_areas = collection.distinct("pricearea")  # get all unique price areas
-        selected_area = st.radio("Select Price Area", price_areas)
-
-        # show pie chart for selected price area in the left column
-        data = list(collection.find({"pricearea": selected_area}))
-        if data:
-            df_area = pd.DataFrame(data)
-            df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
-
-            import plotly.express as px
-            fig = px.pie(
-                df_grouped,
-                values="quantitykwh",
-                names="productiongroup",
-                title=f"Total Production for {selected_area}"
-            )
-            st.plotly_chart(fig)
-        else:
-            st.write("No data found for this price area.")
-
-    # On the right side, use pills (st.pills) to select which production groups to include and a selection element of your choice to select a month. Combine the price area, production group(s) and month, and display a line plot like in the Jupyter Notebook (but for any month).
-    with col2:
-        production_groups = collection.distinct("productiongroup")
-        # Ensure production_groups is a proper list
-        production_groups = list(production_groups)  # from MongoDB, make sure it's a list
-
-        # Multi-select pills widget
-        selected_groups = st.pills(
-            label="Select Production Groups",
-            options=production_groups,
-            selection_mode="multi",
-            default=production_groups  # default to all selected
-        )
-
-        month = st.selectbox("Select Month", list(MONTH_NAMES.values()), index=0)
-        month_num = [k for k,v in MONTH_NAMES.items() if v == month][0]
-
-        # Query MongoDB with the selected filters
-        query = {
-            "pricearea": selected_area,
-            "productiongroup": {"$in": selected_groups},
-            "starttime": {
-                "$gte": pd.Timestamp(2021, month_num, 1),
-                "$lt": pd.Timestamp(2021, month_num + 1, 1) if month_num < 12 else pd.Timestamp(2022, 1, 1)
-            }
-        }
-        data_filtered = list(collection.find(query))
-        if data_filtered:
-            df_filtered = pd.DataFrame(data_filtered)
-            df_filtered['starttime'] = pd.to_datetime(df_filtered['starttime'])
-            df_grouped_time = df_filtered.groupby(['starttime', 'productiongroup'])['quantitykwh'].sum().reset_index()
-
-            fig2 = px.line(
-                df_grouped_time,
-                x='starttime',
-                y='quantitykwh',
-                color='productiongroup',
-                title=f"Production in {selected_area} for {month}"
-            )
-            st.plotly_chart(fig2)
-        else:
-            st.write("No data found for the selected filters.")
-
-    # Below the columns, insert an expander (st.expander) where you briefly document the source of the data shown on the page.
-    with st.expander("Data Source"):
-        st.write("The data displayed on this page is sourced from the MongoDB database. The Elhub API was used to retrieve hourly production data for all price areas using PRODUCTION_PER_GROUP_MBA_HOUR for all days and hours of the year 2021.")
 
 # -----------------------------
 # Create st.Page objects and navigation
