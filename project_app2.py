@@ -420,6 +420,13 @@ def page_energy():
     st.title("Energy Production in 2021 by Price Area and Production Group")
     col1, col2 = st.columns(2)
 
+    # Fetch unique production groups once (for consistent color mapping)
+    production_groups = list(collection.distinct("productiongroup"))
+
+    # Define a color palette that will stay the same across both plots
+    color_palette = px.colors.qualitative.Set2  # or try Plotly's "Plotly", "Set3", "Pastel"
+    color_map = {group: color_palette[i % len(color_palette)] for i, group in enumerate(production_groups)}
+
     with col1:
         price_areas = collection.distinct("pricearea")
         selected_area = st.radio("Select Price Area", price_areas)
@@ -429,44 +436,65 @@ def page_energy():
         if data:
             df_area = pd.DataFrame(data)
             df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
-            fig = px.pie(df_grouped, values="quantitykwh", names="productiongroup",
-                         title=f"Total Production for {selected_area}")
-            st.plotly_chart(fig)
+            fig = px.pie(
+                df_grouped,
+                values="quantitykwh",
+                names="productiongroup",
+                title=f"Total Production for {selected_area}",
+                color="productiongroup",
+                color_discrete_map=color_map  # 👈 consistent colors
+            )
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.write("No data found for this price area.")
 
     with col2:
-        production_groups = list(collection.distinct("productiongroup"))
         selected_groups = st.pills(
             label="Select Production Groups",
             options=production_groups,
             selection_mode="multi",
             default=production_groups
         )
+
         month = st.selectbox("Select Month", list(MONTH_NAMES.values()), index=0)
-        month_num = [k for k,v in MONTH_NAMES.items() if v == month][0]
+        month_num = [k for k, v in MONTH_NAMES.items() if v == month][0]
 
         query = {
             "pricearea": selected_area,
             "productiongroup": {"$in": selected_groups},
             "starttime": {
                 "$gte": pd.Timestamp(2021, month_num, 1),
-                "$lt": pd.Timestamp(2021, month_num+1, 1) if month_num < 12 else pd.Timestamp(2022,1,1)
+                "$lt": pd.Timestamp(2021, month_num + 1, 1) if month_num < 12 else pd.Timestamp(2022, 1, 1)
             }
         }
         data_filtered = list(collection.find(query))
         if data_filtered:
             df_filtered = pd.DataFrame(data_filtered)
-            df_filtered['starttime'] = pd.to_datetime(df_filtered['starttime'])
-            df_grouped_time = df_filtered.groupby(['starttime','productiongroup'])['quantitykwh'].sum().reset_index()
-            fig2 = px.line(df_grouped_time, x='starttime', y='quantitykwh', color='productiongroup',
-                           title=f"Production in {selected_area} for {month}")
-            st.plotly_chart(fig2)
+            df_filtered["starttime"] = pd.to_datetime(df_filtered["starttime"])
+            df_grouped_time = (
+                df_filtered.groupby(["starttime", "productiongroup"])["quantitykwh"]
+                .sum()
+                .reset_index()
+            )
+
+            fig2 = px.line(
+                df_grouped_time,
+                x="starttime",
+                y="quantitykwh",
+                color="productiongroup",
+                title=f"Production in {selected_area} for {month}",
+                color_discrete_map=color_map  # 👈 consistent colors
+            )
+            st.plotly_chart(fig2, use_container_width=True)
         else:
             st.write("No data found for the selected filters.")
 
     with st.expander("Data Source"):
-        st.write("The data displayed is sourced from MongoDB. The Elhub API provided hourly production data for all price areas in 2021.")
+        st.write(
+            "The data displayed is sourced from MongoDB. "
+            "The Elhub API provided hourly production data for all price areas in 2021."
+        )
+
 
 # -----------------------------
 # Page newA: STL & Spectrogram (skeleton)
