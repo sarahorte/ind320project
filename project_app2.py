@@ -420,12 +420,14 @@ def page_energy():
     st.title("Energy Production in 2021 by Price Area and Production Group")
     col1, col2 = st.columns(2)
 
-    # Fetch unique production groups once (for consistent color mapping)
-    production_groups = list(collection.distinct("productiongroup"))
-
-    # Define a color palette that will stay the same across both plots
-    color_palette = px.colors.qualitative.Set2  # or try Plotly's "Plotly", "Set3", "Pastel"
-    color_map = {group: color_palette[i % len(color_palette)] for i, group in enumerate(production_groups)}
+    # --- Fixed color mapping for production groups ---
+    color_map = {
+        "hydro": "#1f77b4",     # Dark Blue
+        "wind": "#5dade2",      # Light Blue
+        "solar": "#ff7f7f",     # Light Red
+        "thermal": "#7f7f7f",   # Grey
+        "other": "#2ecc71"      # Green
+    }
 
     with col1:
         price_areas = collection.distinct("pricearea")
@@ -442,13 +444,14 @@ def page_energy():
                 names="productiongroup",
                 title=f"Total Production for {selected_area}",
                 color="productiongroup",
-                color_discrete_map=color_map  # 👈 consistent colors
+                color_discrete_map=color_map  # 👈 fixed consistent colors
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.write("No data found for this price area.")
 
     with col2:
+        production_groups = list(collection.distinct("productiongroup"))
         selected_groups = st.pills(
             label="Select Production Groups",
             options=production_groups,
@@ -483,7 +486,7 @@ def page_energy():
                 y="quantitykwh",
                 color="productiongroup",
                 title=f"Production in {selected_area} for {month}",
-                color_discrete_map=color_map  # 👈 consistent colors
+                color_discrete_map=color_map  # 👈 fixed consistent colors
             )
             st.plotly_chart(fig2, use_container_width=True)
         else:
@@ -494,6 +497,7 @@ def page_energy():
             "The data displayed is sourced from MongoDB. "
             "The Elhub API provided hourly production data for all price areas in 2021."
         )
+
 
 
 # -----------------------------
