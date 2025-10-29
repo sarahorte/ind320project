@@ -595,7 +595,7 @@ def page_newB():
         else:
             var_choice = st.selectbox("Select variable", numeric_cols, index=0)
             cutoff_frac = st.slider("DCT cutoff fraction", 0.01, 0.1, 0.05, 0.01)
-            k = st.slider("SPC k parameter", 1, 5, 3, 1)
+            k = st.slider("SPC k parameter (σ multiplier)", 0.5, 6.0, 3.0, 0.1)
 
             series = df_weather[var_choice].dropna()
             fig_spc, summary_spc = spc_outlier_plotly(series, cutoff_frac=cutoff_frac, k=k,
