@@ -189,7 +189,6 @@ def spc_outlier_plotly(temp_series: pd.Series, cutoff_frac: float = 0.05, k: flo
         'sigma_est': sigma, # robust std dev estimate of SATV
         'cutoff_frac': float(cutoff_frac), # DCT cutoff fraction
         'k': float(k), # SPC k parameter
-        'example_outlier_times': list(map(str, temp_series.index[outlier_mask][:20])) # first 20 outlier timestamps as strings
     }
 
     return fig, summary
@@ -603,8 +602,10 @@ def page_newB():
                                                       title=f"{var_choice} SPC Outlier Detection")
             st.plotly_chart(fig_spc, use_container_width=True)
 
-            st.markdown("**SPC Summary:**")
-            st.json(summary_spc)
+            # present the summary as a table
+            st.write("### SPC Summary Table")
+            summary_df = pd.DataFrame.from_dict(summary_spc, orient='index', columns=['Value'])
+            st.table(summary_df)
 
     # -------------------- Tab 2: Precipitation Anomaly Detection (LOF) --------------------
     with tabs[1]:
