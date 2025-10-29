@@ -186,12 +186,14 @@ def page_data_table():
         })
 
     df_series = pd.DataFrame(series_rows).set_index("variable")
+   
     column_config = {
-        "mean": st.column_config.NumberColumn(label="Mean", format="%.1f"),
-        "min": st.column_config.NumberColumn(label="Min", format="%.1f"),
-        "max": st.column_config.NumberColumn(label="Max", format="%.1f"),
-        "Jan": st.column_config.LineChartColumn(label="January (hourly)")
+        "mean": st.column_config.NumberColumn(label="Mean", format="%.1f", width=None),
+        "min": st.column_config.NumberColumn(label="Min", format="%.1f", width=None),
+        "max": st.column_config.NumberColumn(label="Max", format="%.1f", width=None),
+        "Jan": st.column_config.LineChartColumn(label="January (hourly)", help="Hourly time series", width="large", y_min=None, y_max=None)
     }
+
     st.dataframe(df_series, column_config=column_config, use_container_width=True)
 
 # -----------------------------
