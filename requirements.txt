@@ -1,8 +1,9 @@
 streamlit
 pandas
-matplotlib
-streamlit>=1.32
 numpy
+matplotlib
 plotly
 pymongo
-plotly.express
+requests_cache
+retry_requests
+openmeteo-requests
