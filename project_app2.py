@@ -613,8 +613,18 @@ def page_newB():
         if "precipitation" not in df_weather.columns:
             st.warning("No precipitation data available for LOF analysis.")
         else:
-            contamination = st.slider("Contamination fraction", 0.001, 0.05, 0.01, 0.001)
-            n_neighbors = st.slider("LOF neighbors", 5, 50, 20, 1)
+            contamination = st.slider(
+                "Contamination (expected outlier fraction)",
+                0.001, 0.05, 0.01, 0.001,
+                help="Fraction of data expected to be outliers (1% is a common default)"
+    )
+
+            n_neighbors = st.slider(
+                "LOF neighbors (local window size)",
+                5, 60, 20, 1,
+                help="Number of neighbors used to define the local density (smaller = more sensitive)"
+        )
+
 
             series_precip = df_weather["precipitation"].dropna()
             fig_lof, summary_lof = lof_precipitation_plotly(series_precip, contamination=contamination,
