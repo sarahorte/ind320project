@@ -208,24 +208,41 @@ def page_plots():
         return
 
     choice = st.selectbox("Select variable", ["All"] + df_weather.columns.tolist(), index=0)
-    month_range = st.select_slider("Select month range", options=list(range(1,13)), value=(1,1),
-                                   format_func=lambda x: MONTH_NAMES[x])
+    month_range = st.select_slider(
+        "Select month range", options=list(range(1,13)), value=(1,1),
+        format_func=lambda x: MONTH_NAMES[x]
+    )
     start_month, end_month = month_range
 
     df_sel = df_weather[(df_weather.index.month >= start_month) & (df_weather.index.month <= end_month)]
-    fig, ax = plt.subplots(figsize=(12,6))
-    if choice == "All":
-        for col in df_sel.columns:
-            ax.plot(df_sel.index, df_sel[col], label=col)
-    else:
-        ax.plot(df_sel.index, df_sel[choice], label=choice)
+    fig, ax1 = plt.subplots(figsize=(12,6))
 
-    ax.set_title(f"Weather in {selected_area} for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}")
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Value")
-    ax.legend()
-    ax.grid(True)
+    # Columns for left y-axis (all except wind_direction_10m)
+    left_columns = [c for c in df_sel.columns if c != 'wind_direction_10m']
+
+    if choice == "All":
+        for col in left_columns:
+            ax1.plot(df_sel.index, df_sel[col], label=col)
+        ax1.set_ylabel("Temperature / Wind speed / Gusts")
+    elif choice != 'wind_direction_10m':
+        ax1.plot(df_sel.index, df_sel[choice], label=choice)
+        ax1.set_ylabel(choice)
+
+    # Right y-axis for wind direction
+    if 'wind_direction_10m' in df_sel.columns and (choice == "All" or choice == 'wind_direction_10m'):
+        ax2 = ax1.twinx()
+        ax2.plot(df_sel.index, df_sel['wind_direction_10m'], color='lightgray', label='Wind Direction')
+        ax2.set_ylabel("Wind Direction (°)")
+        ax2.set_ylim(0, 360)
+        ax2.legend(loc='upper right')
+
+    ax1.set_title(f"Weather in {selected_area} for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}")
+    ax1.set_xlabel("Time")
+    ax1.legend(loc='upper left')
+    ax1.grid(True)
+    fig.autofmt_xdate()
     st.pyplot(fig)
+
 
 # -----------------------------
 # Page newB: Outlier & Anomaly (skeleton)
