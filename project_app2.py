@@ -130,12 +130,13 @@ def mad(arr):
     med = np.median(arr)
     return np.median(np.abs(arr - med))
 
+# SPC outlier detection and Plotly plotting function
 def spc_outlier_plotly(temp_series: pd.Series, cutoff_frac: float = 0.05, k: float = 3.0, title: str = None):
     """
     temp_series: pandas Series with datetime index and temperature values (°C).
     cutoff_frac: fraction of lowest DCT frequencies to KEEP as seasonal (default 0.05; 0.04–0.08 are sensible range).
     k: number of robust standard deviations to use for SPC boundaries (default 3).
-    Returns: (plotly_fig, summary_df)
+    Returns: (plotly_fig, summary_dict)
     """
     if not isinstance(temp_series.index, pd.DatetimeIndex):
         temp_series = temp_series.copy()
@@ -149,7 +150,7 @@ def spc_outlier_plotly(temp_series: pd.Series, cutoff_frac: float = 0.05, k: flo
     mad_val = float(mad(satv.values))
     sigma = float(1.4826 * mad_val) if mad_val > 0 else float(np.std(satv.values))
 
-    # SATV thresholds and curves
+    # SATV thresholds (constant values) and convert to original scale by adding seasonal component
     lower_satv = med - k * sigma
     upper_satv = med + k * sigma
     lower_curve = seasonal + lower_satv
@@ -179,35 +180,19 @@ def spc_outlier_plotly(temp_series: pd.Series, cutoff_frac: float = 0.05, k: flo
         width=1100
     )
 
-    # Create a nice summary DataFrame
-    summary_data = {
-        "Metric": [
-            "Total points",
-            "Detected outliers",
-            "Outlier fraction",
-            "Median of SATV",
-            "MAD of SATV",
-            "Estimated robust sigma",
-            "DCT cutoff fraction",
-            "SPC k parameter",
-            "Example outlier times"
-        ],
-        "Value": [
-            n_points,
-            n_outliers,
-            f"{outlier_fraction:.2%}",
-            f"{med:.3f}",
-            f"{mad_val:.3f}",
-            f"{sigma:.3f}",
-            f"{cutoff_frac:.2f}",
-            k,
-            ", ".join(map(str, temp_series.index[outlier_mask][:10]))  # first 10 for brevity
-        ]
+    summary = {
+        'n_points': n_points, # total number of data points
+        'n_outliers': n_outliers, # number of detected outliers
+        'outlier_fraction': outlier_fraction, # fraction of outliers
+        'median_satv': med, # median of SATV
+        'mad_satv': mad_val, # MAD of SATV
+        'sigma_est': sigma, # robust std dev estimate of SATV
+        'cutoff_frac': float(cutoff_frac), # DCT cutoff fraction
+        'k': float(k), # SPC k parameter
+        'example_outlier_times': list(map(str, temp_series.index[outlier_mask][:20])) # first 20 outlier timestamps as strings
     }
-    summary_df = pd.DataFrame(summary_data)
 
-    return fig, summary_df
-
+    return fig, summary
 
 
 
