@@ -212,6 +212,8 @@ def page_data_table():
 def page_plots():
     st.title("Weather Plots")
     selected_area = st.session_state.get("selected_area", "NO1")
+    # Get the city corresponding to the selected area
+    city_name = df_price_areas.loc[df_price_areas['price_area'] == selected_area, 'city'].values[0]
     df_weather = load_weather_data(selected_area)
     if df_weather.empty:
         st.warning(f"No weather data for {selected_area}")
@@ -246,7 +248,7 @@ def page_plots():
         ax2.set_ylim(0, 360)
         ax2.legend(loc='upper right')
 
-    ax1.set_title(f"Weather in {selected_area} for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}")
+    ax1.set_title(f"Weather in {selected_area} ({city_name}) for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}")
     ax1.set_xlabel("Time")
     ax1.legend(loc='upper left')
     ax1.grid(True)
