@@ -423,9 +423,9 @@ def page_energy():
     # --- Fixed color mapping for production groups ---
     color_map = {
         "hydro": "#1f77b4",     # Dark Blue
-        "wind": "#5dade2",      # make lighter Blue, even lighter
-        "solar": "#ff7f7f",     # Light Red
-        "thermal": "#ff7f50",   # Orange
+        "wind": "#8ac9f3",      # make lighter Blue, even lighter
+        "solar": "#f25454",     # red
+        "thermal": "#fead6b",   # Orange
         "other": "#2ecc71"      # Green
     }
 
