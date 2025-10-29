@@ -167,6 +167,9 @@ def page_newA():
 # -----------------------------
 def page_data_table():
     st.title("Weather Data — January Overview")
+    st.write(
+        "This table shows the minimum, maximum and mean values for each variable in January. The January (hourly) column contains the January time series as a line chart in the selected {selected_area}."
+    )
     selected_area = st.session_state.get("selected_area", "NO1")
     df_weather = load_weather_data(selected_area)
     if df_weather.empty:
@@ -228,7 +231,7 @@ def page_plots():
         ax1.plot(df_sel.index, df_sel[choice], label=choice)
         ax1.set_ylabel(choice)
 
-    # Right y-axis for wind direction
+    # Right y-axis for wind direction. 
     if 'wind_direction_10m' in df_sel.columns and (choice == "All" or choice == 'wind_direction_10m'):
         ax2 = ax1.twinx()
         ax2.plot(df_sel.index, df_sel['wind_direction_10m'], color='lightgray', label='Wind Direction')
