@@ -523,6 +523,21 @@ def page_newA():
     df_prod["starttime"] = pd.to_datetime(df_prod["starttime"])
     df_prod = df_prod.sort_values("starttime").set_index("starttime")
 
+    # 🔧 FIX: Handle duplicate timestamps by summing production
+    if df_prod.index.duplicated().any():
+        duplicates = df_prod.index.duplicated().sum()
+        st.info(f"Detected {duplicates} duplicate timestamps — summing production values.")
+        df_prod = df_prod.groupby(df_prod.index).sum(numeric_only=True)
+
+    # Ensure index is unique and sorted for STL
+    df_prod = df_prod[~df_prod.index.duplicated(keep="first")].sort_index()
+
+    # Ensure regular hourly frequency
+    df_prod = df_prod.asfreq("H")
+
+    # Interpolate missing production values linearly
+    df_prod["quantitykwh"] = df_prod["quantitykwh"].interpolate(method="linear")
+
     st.write(
         f"Loaded **{len(df_prod)} hourly records** for {selected_group.upper()} production in {selected_area}."
     )
