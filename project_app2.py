@@ -526,7 +526,7 @@ def page_newA():
     # 🔧 FIX: Handle duplicate timestamps by summing production
     if df_prod.index.duplicated().any():
         duplicates = df_prod.index.duplicated().sum()
-        st.info(f"Detected {duplicates} duplicate timestamps — summing production values.")
+        # st.info(f"Detected {duplicates} duplicate timestamps — summing production values.")
         df_prod = df_prod.groupby(df_prod.index).sum(numeric_only=True)
 
     # Re-add metadata columns that were dropped during aggregation
@@ -542,9 +542,9 @@ def page_newA():
     # Interpolate missing production values linearly
     df_prod["quantitykwh"] = df_prod["quantitykwh"].interpolate(method="linear")
 
-    st.write(
-        f"Loaded **{len(df_prod)} hourly records** for {selected_group.upper()} production in {selected_area}."
-    )
+    #st.write(
+    #    f"Loaded **{len(df_prod)} hourly records** for {selected_group.upper()} production in {selected_area}."
+    #)
 
     # --- Tabs for STL and Spectrogram ---
     tab_stl, tab_spec = st.tabs(["📊 STL Decomposition", "🌀 Spectrogram"])
