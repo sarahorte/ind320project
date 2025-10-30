@@ -821,7 +821,7 @@ def page_newB():
 
     # -------------------- Tab 2: Precipitation Anomaly Detection (LOF) --------------------
     with tabs[1]:
-        st.subheader(f"Precipitation Anomaly Detection (LOF) for {selected_area}")
+        st.subheader(f"Precipitation Anomaly Detection (LOF) for {selected_area} ({city_name})")
         if "precipitation" not in df_weather.columns:
             st.warning("No precipitation data available for LOF analysis.")
         else:
