@@ -529,6 +529,10 @@ def page_newA():
         st.info(f"Detected {duplicates} duplicate timestamps — summing production values.")
         df_prod = df_prod.groupby(df_prod.index).sum(numeric_only=True)
 
+    # Re-add metadata columns that were dropped during aggregation
+    df_prod["pricearea"] = selected_area
+    df_prod["productiongroup"] = selected_group
+
     # Ensure index is unique and sorted for STL
     df_prod = df_prod[~df_prod.index.duplicated(keep="first")].sort_index()
 
