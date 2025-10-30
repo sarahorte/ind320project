@@ -9,4 +9,5 @@ requests-cache
 retry-requests
 pymongo
 streamlit
-from statsmodels.tsa.seasonal import STL
+statsmodels
+
