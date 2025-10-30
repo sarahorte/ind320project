@@ -797,7 +797,7 @@ def page_newB():
 
     # -------------------- Tab 1: SPC Outlier Detection --------------------
     with tabs[0]:
-        st.subheader(f"SPC Outlier Detection for {selected_area}")
+        st.subheader(f"SPC Outlier Detection for {selected_area} ({city_name})")
         # Let user select variable and parameters
         numeric_cols = df_weather.select_dtypes(include='number').columns.tolist()
         if not numeric_cols:
