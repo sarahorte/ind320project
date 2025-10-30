@@ -689,7 +689,7 @@ def page_newA():
 # Page: Weather Data table
 # -----------------------------
 def page_data_table():
-    st.title("Weather Data — January Overview")
+    st.title("Weather Data — January 2021 Overview")
 
     selected_area = st.session_state.get("selected_area", "NO1") # Default to NO1 if not set
     # Get the city corresponding to the selected area
@@ -733,7 +733,7 @@ def page_data_table():
 # Page: Interactive plots
 # -----------------------------
 def page_plots():
-    st.title("Weather Plots")
+    st.title("Weather Plots 2021")
     selected_area = st.session_state.get("selected_area", "NO1")
     # Get the city corresponding to the selected area
     city_name = df_price_areas.loc[df_price_areas['price_area'] == selected_area, 'city'].values[0]
