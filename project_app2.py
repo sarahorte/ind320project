@@ -787,6 +787,8 @@ def page_newB():
     st.title("Outlier and Anomaly Detection")
 
     selected_area = st.session_state.get("selected_area", "NO1")
+    # Get the city corresponding to the selected area
+    city_name = df_price_areas.loc[df_price_areas['price_area'] == selected_area, 'city'].values[0]
     df_weather = load_weather_data(selected_area)
 
     if df_weather.empty:
