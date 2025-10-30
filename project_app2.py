@@ -504,8 +504,163 @@ def page_energy():
 # Page newA: STL & Spectrogram (skeleton)
 # -----------------------------
 def page_newA():
-    st.title("STL Decomposition & Spectrogram")
-    st.write("To be implemented: STL decomposition & Spectrogram for selected_area weather data.")
+    st.title("STL Decomposition & Spectrogram Analysis (Elhub Production Data)")
+
+    # --- Load available options from MongoDB ---
+    price_areas = collection.distinct("pricearea")
+    production_groups = collection.distinct("productiongroup")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_area = st.selectbox("Select Price Area", price_areas, index=0)
+    with col2:
+        selected_group = st.selectbox("Select Production Group", production_groups, index=0)
+
+    # --- Load Elhub production data ---
+    data = list(collection.find({"pricearea": selected_area, "productiongroup": selected_group}))
+    if not data:
+        st.warning(f"No production data found for {selected_area} ({selected_group}).")
+        return
+
+    df_prod = pd.DataFrame(data)
+    df_prod["starttime"] = pd.to_datetime(df_prod["starttime"])
+    df_prod = df_prod.sort_values("starttime").set_index("starttime")
+
+    st.write(
+        f"Loaded **{len(df_prod)} hourly records** for {selected_group.upper()} production in {selected_area}."
+    )
+
+    # --- Tabs: STL and Spectrogram ---
+    tab_stl, tab_spec = st.tabs(["📊 STL Decomposition", "🌀 Spectrogram"])
+
+    # ==================================================
+    # TAB 1: STL Decomposition
+    # ==================================================
+    with tab_stl:
+        st.subheader(f"STL Decomposition for {selected_group.upper()} in {selected_area}")
+
+        # UI Controls
+        st.markdown("#### Parameters")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            period = st.number_input(
+                "Period (hours per seasonal cycle)",
+                min_value=1,
+                max_value=1000,
+                value=24,
+                help="Typical period for daily patterns: 24 (hours)"
+            )
+        with col2:
+            seasonal = st.number_input(
+                "Seasonal smoothing length",
+                min_value=3,
+                max_value=101,
+                value=13,
+                step=2,
+                help="Higher values = smoother seasonal component"
+            )
+        with col3:
+            trend = st.number_input(
+                "Trend smoothing length",
+                min_value=3,
+                max_value=301,
+                value=25,
+                step=2,
+                help="Higher values = smoother long-term trend"
+            )
+
+        robust = st.checkbox("Use robust mode (less sensitive to outliers)", value=True)
+
+        # Run STL decomposition
+        try:
+            fig_stl, res_stl = stl_decomposition_plotly_subplots(
+                df_prod,
+                price_area=selected_area,
+                production_group=selected_group,
+                period=period,
+                seasonal=seasonal,
+                trend=trend,
+                robust=robust
+            )
+            st.plotly_chart(fig_stl, use_container_width=True)
+
+            # --- Display summary statistics ---
+            st.markdown("#### Residual Summary")
+            residuals = res_stl.resid.dropna()
+            summary_df = pd.DataFrame({
+                "Mean": [residuals.mean()],
+                "Std Dev": [residuals.std()],
+                "Min": [residuals.min()],
+                "Max": [residuals.max()]
+            }).T.rename(columns={0: "Value"})
+            st.table(summary_df)
+        except Exception as e:
+            st.error(f"Error performing STL decomposition: {e}")
+
+        with st.expander("ℹ️ About STL Decomposition"):
+            st.markdown("""
+            **STL (Seasonal-Trend decomposition using Loess)** splits a time series into:
+            - **Trend:** long-term change  
+            - **Seasonal:** repeating daily/weekly pattern  
+            - **Residual:** short-term fluctuations or noise
+            """)
+
+    # ==================================================
+    # TAB 2: Spectrogram
+    # ==================================================
+    with tab_spec:
+        st.subheader(f"Spectrogram Analysis for {selected_group.upper()} in {selected_area}")
+
+        # UI Controls for STFT
+        st.markdown("#### Parameters")
+        col1, col2 = st.columns(2)
+        with col1:
+            window_length = st.slider(
+                "Window length (hours per segment)",
+                24, 500, 168, 12,
+                help="Typical value: 168 hours = 1 week"
+            )
+        with col2:
+            overlap = st.slider(
+                "Window overlap (hours)",
+                0, window_length - 1, int(window_length / 2), 1,
+                help="Overlap between STFT windows"
+            )
+
+        # Run spectrogram
+        try:
+            f, t, Zxx = matplotlib_spectrogram(
+                df_prod,
+                price_area=selected_area,
+                production_group=selected_group,
+                window_length=window_length,
+                window_overlap=overlap,
+                fs=1
+            )
+
+            st.markdown("**Spectrogram plotted below (using Matplotlib)**")
+            st.pyplot(plt.gcf())
+
+            # Display basic summary
+            st.markdown("#### Frequency Domain Summary")
+            power = np.abs(Zxx)
+            df_summary = pd.DataFrame({
+                "Mean Power": [power.mean()],
+                "Max Power": [power.max()],
+                "Dominant Frequency": [f[np.argmax(power.mean(axis=1))]]
+            }).T.rename(columns={0: "Value"})
+            st.table(df_summary)
+        except Exception as e:
+            st.error(f"Error computing spectrogram: {e}")
+
+        with st.expander("ℹ️ About Spectrogram Analysis"):
+            st.markdown("""
+            A **spectrogram** shows how signal power varies across both **time** and **frequency**.
+            Peaks indicate strong periodic behavior.  
+            - Daily cycles → frequency ≈ 1/24  
+            - Weekly cycles → frequency ≈ 1/168  
+            """)
+
 
 # -----------------------------
 # Page: Weather Data table
