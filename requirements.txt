@@ -10,4 +10,6 @@ retry-requests
 pymongo
 streamlit
 statsmodels
-
+folium
+streamlit-folium
+shapely
