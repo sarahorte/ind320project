@@ -340,12 +340,12 @@ def stl_decomposition_plotly_subplots(
 
 
 
-
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 from scipy.signal import stft
+import plotly.graph_objects as go
 
-def matplotlib_spectrogram(
+def plotly_spectrogram(
     df,
     price_area='NO1',
     production_group='hydro',
@@ -354,7 +354,7 @@ def matplotlib_spectrogram(
     fs=1                 # sampling frequency (1 per hour)
 ):
     """
-    Compute and plot a spectrogram for electricity production data using Matplotlib.
+    Compute and plot a spectrogram for electricity production data using Plotly.
 
     Parameters
     ----------
@@ -380,29 +380,45 @@ def matplotlib_spectrogram(
     Zxx : np.ndarray
         STFT complex values.
     """
-    # Filter data
-    ts = df[(df['priceArea'].str.lower() == price_area.lower()) &
-            (df['productionGroup'].str.lower() == production_group.lower())]['quantityKwh']
-    
+    # --- Filter data ---
+    ts = df[
+        (df['priceArea'].str.lower() == price_area.lower()) &
+        (df['productionGroup'].str.lower() == production_group.lower())
+    ]['quantityKwh']
+
     if ts.empty:
         raise ValueError(f"No data for price area '{price_area}' and production group '{production_group}'")
-    
+
     ts = ts.asfreq('h').ffill()
-    
-    # Compute STFT
+
+    # --- Compute STFT ---
     f, t, Zxx = stft(ts.values, fs=fs, nperseg=window_length, noverlap=window_overlap)
-    
-    # Plot with Matplotlib
-    plt.figure(figsize=(12, 5))
-    plt.pcolormesh(t, f, np.abs(Zxx), shading='gouraud', cmap='viridis', vmin=0, vmax=np.max(np.abs(Zxx)))
-    plt.title(f'Spectrogram: {production_group} in {price_area}')
-    plt.ylabel('Frequency [1/hour]')
-    plt.xlabel('Time [hours]')
-    plt.colorbar(label='Amplitude')
-    plt.tight_layout()
-    plt.show()
-    
+    amplitude = np.abs(Zxx)
+
+    # --- Create interactive spectrogram ---
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=amplitude,
+            x=t,
+            y=f,
+            colorscale='Viridis',
+            colorbar=dict(title='Amplitude'),
+        )
+    )
+
+    fig.update_layout(
+        title=f"Spectrogram: {production_group.capitalize()} in {price_area.upper()}",
+        xaxis_title="Time [hours]",
+        yaxis_title="Frequency [1/hour]",
+        template="plotly_dark",
+        height=500,
+        width=1000,
+    )
+
+    fig.show()
+
     return f, t, Zxx
+
 
 
 
@@ -641,7 +657,7 @@ def page_newA():
                 help="Overlap between segments"
             )
 
-        # Again, fix column names for the spectrogram function
+        # Fix column names for the spectrogram function
         df_spec = df_prod.rename(
             columns={
                 "pricearea": "priceArea",
@@ -651,7 +667,8 @@ def page_newA():
         )
 
         try:
-            f, t, Zxx = matplotlib_spectrogram(
+            # --- Use Plotly-based spectrogram ---
+            f, t, Zxx = plotly_spectrogram(
                 df_spec,
                 price_area=selected_area,
                 production_group=selected_group,
@@ -660,10 +677,30 @@ def page_newA():
                 fs=1
             )
 
-            st.pyplot(plt.gcf())
+            # Display interactive Plotly chart in Streamlit
+            power = np.abs(Zxx)
+            fig = go.Figure(
+                data=go.Heatmap(
+                    z=power,
+                    x=t,
+                    y=f,
+                    colorscale='Viridis',
+                    colorbar=dict(title='Amplitude'),
+                )
+            )
+
+            fig.update_layout(
+                title=f"Spectrogram: {selected_group.capitalize()} in {selected_area.upper()}",
+                xaxis_title="Time [hours]",
+                yaxis_title="Frequency [1/hour]",
+                template="plotly_dark",
+                height=500,
+                width=1000,
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
 
             # Power summary
-            power = np.abs(Zxx)
             st.markdown("#### Frequency Domain Summary")
             df_summary = pd.DataFrame({
                 "Mean Power": [power.mean()],
@@ -682,6 +719,7 @@ def page_newA():
             - Weekly cycles → frequency ≈ 1/168  
             Peaks highlight periodic production behavior.
             """)
+
 
 
 
