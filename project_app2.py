@@ -768,53 +768,91 @@ def page_data_table():
     st.dataframe(df_series, column_config=column_config, use_container_width=True)
 
 # -----------------------------
-# Page: Interactive plots
+# Page: Interactive plots (Plotly version)
 # -----------------------------
+import plotly.graph_objects as go
+
 def page_plots():
     st.title("Weather Plots 2021")
     selected_area = st.session_state.get("selected_area", "NO1")
-    # Get the city corresponding to the selected area
-    city_name = df_price_areas.loc[df_price_areas['price_area'] == selected_area, 'city'].values[0]
+
+    # Get city corresponding to the selected area
+    city_name = df_price_areas.loc[
+        df_price_areas['price_area'] == selected_area, 'city'
+    ].values[0]
+
     df_weather = load_weather_data(selected_area)
     if df_weather.empty:
         st.warning(f"No weather data for {selected_area}")
         return
 
+    # User controls
     choice = st.selectbox("Select variable", ["All"] + df_weather.columns.tolist(), index=0)
     month_range = st.select_slider(
-        "Select month range", options=list(range(1,13)), value=(1,1),
+        "Select month range", options=list(range(1, 13)), value=(1, 1),
         format_func=lambda x: MONTH_NAMES[x]
     )
     start_month, end_month = month_range
 
-    df_sel = df_weather[(df_weather.index.month >= start_month) & (df_weather.index.month <= end_month)]
-    fig, ax1 = plt.subplots(figsize=(12,6))
+    # Filter by selected months
+    df_sel = df_weather[
+        (df_weather.index.month >= start_month) & (df_weather.index.month <= end_month)
+    ]
 
-    # Columns for left y-axis (all except wind_direction_10m)
+    # Prepare figure
+    fig = go.Figure()
     left_columns = [c for c in df_sel.columns if c != 'wind_direction_10m']
 
+    # --- Left Y-axis (temp, wind speed, gusts) ---
     if choice == "All":
         for col in left_columns:
-            ax1.plot(df_sel.index, df_sel[col], label=col)
-        ax1.set_ylabel("Temperature / Wind speed / Gusts")
-    elif choice != 'wind_direction_10m':
-        ax1.plot(df_sel.index, df_sel[choice], label=choice)
-        ax1.set_ylabel(choice)
+            fig.add_trace(go.Scatter(
+                x=df_sel.index, y=df_sel[col],
+                mode='lines',
+                name=col
+            ))
+        yaxis_title_left = "Temperature / Wind Speed / Gusts"
+    elif choice != "wind_direction_10m":
+        fig.add_trace(go.Scatter(
+            x=df_sel.index, y=df_sel[choice],
+            mode='lines',
+            name=choice
+        ))
+        yaxis_title_left = choice
+    else:
+        yaxis_title_left = "Temperature / Wind Speed / Gusts"
 
-    # Right y-axis for wind direction. 
+    # --- Right Y-axis (wind direction) ---
     if 'wind_direction_10m' in df_sel.columns and (choice == "All" or choice == 'wind_direction_10m'):
-        ax2 = ax1.twinx()
-        ax2.plot(df_sel.index, df_sel['wind_direction_10m'], color='lightgray', label='Wind Direction')
-        ax2.set_ylabel("Wind Direction (°)")
-        ax2.set_ylim(0, 360)
-        ax2.legend(loc='upper right')
+        fig.add_trace(go.Scatter(
+            x=df_sel.index, y=df_sel['wind_direction_10m'],
+            mode='lines',
+            name='Wind Direction (°)',
+            yaxis='y2',
+            line=dict(color='lightgray', dash='dot')
+        ))
 
-    ax1.set_title(f"Weather in {selected_area} ({city_name}) for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}")
-    ax1.set_xlabel("Time")
-    ax1.legend(loc='upper left')
-    ax1.grid(True)
-    fig.autofmt_xdate()
-    st.pyplot(fig)
+    # Layout configuration
+    fig.update_layout(
+        title=f"Weather in {selected_area} ({city_name}) for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}",
+        xaxis=dict(title="Time"),
+        yaxis=dict(title=yaxis_title_left),
+        yaxis2=dict(
+            title="Wind Direction (°)",
+            overlaying="y",
+            side="right",
+            range=[0, 360],
+            showgrid=False
+        ),
+        legend=dict(orientation="h", y=-0.2),
+        template="plotly_white",
+        hovermode="x unified",
+        height=600
+    )
+
+    # Show in Streamlit
+    st.plotly_chart(fig, use_container_width=True)
+
 
 
 # -----------------------------
