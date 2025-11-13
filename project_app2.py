@@ -853,6 +853,16 @@ def page_plots():
     # Show in Streamlit
     st.plotly_chart(fig, use_container_width=True)
 
+# Write something about the data source
+    with st.expander("Data Source"):
+        st.write(
+            "The weather data is sourced from the ERA5 reanalysis dataset provided by ECMWF. "
+            "Hourly data for temperature, precipitation, wind speed, wind gusts, and wind direction "
+            "was fetched for representative locations in each Norwegian price area for the year 2021."
+        )
+
+
+
 
 
 # -----------------------------
