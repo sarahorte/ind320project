@@ -19,7 +19,9 @@ dbname = st.secrets["mongodb"]["dbname"]
 uri = f"mongodb+srv://{user}:{pwd}@{cluster}/?retryWrites=true&w=majority"
 client = MongoClient(uri)
 db = client[dbname]
-collection = db['production_data']
+
+# Collections
+production_collection = db["production_data"]
 
 # -----------------------------
 # ERA5 API fetch function
@@ -446,11 +448,11 @@ def page_energy():
     }
 
     with col1:
-        price_areas = collection.distinct("pricearea")
+        price_areas = production_collection.distinct("pricearea")
         selected_area = st.radio("Select Price Area", price_areas)
         st.session_state["selected_area"] = selected_area
 
-        data = list(collection.find({"pricearea": selected_area}))
+        data = list(production_collection.find({"pricearea": selected_area}))
         if data:
             df_area = pd.DataFrame(data)
             df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
@@ -467,7 +469,7 @@ def page_energy():
             st.write("No data found for this price area.")
 
     with col2:
-        production_groups = list(collection.distinct("productiongroup"))
+        production_groups = list(production_collection.distinct("productiongroup"))
         selected_groups = st.pills(
             label="Select Production Groups",
             options=production_groups,
@@ -486,7 +488,7 @@ def page_energy():
                 "$lt": pd.Timestamp(2021, month_num + 1, 1) if month_num < 12 else pd.Timestamp(2022, 1, 1)
             }
         }
-        data_filtered = list(collection.find(query))
+        data_filtered = list(production_collection.find(query))
         if data_filtered:
             df_filtered = pd.DataFrame(data_filtered)
             df_filtered["starttime"] = pd.to_datetime(df_filtered["starttime"])
@@ -526,11 +528,11 @@ def page_newA():
     selected_area = st.session_state.get("selected_area", "NO1")
 
     # Get available production groups from MongoDB
-    production_groups = collection.distinct("productiongroup")
+    production_groups = production_collection.distinct("productiongroup")
     selected_group = st.selectbox("Select Production Group", production_groups, index=0)
 
     # --- Load Elhub data from MongoDB ---
-    data = list(collection.find({"pricearea": selected_area, "productiongroup": selected_group}))
+    data = list(production_collection.find({"pricearea": selected_area, "productiongroup": selected_group}))
     if not data:
         st.warning(f"No production data found for {selected_area} ({selected_group}).")
         return
@@ -994,9 +996,9 @@ def page_map():
         return None
 
     # -----------------------------
-    # Dummy values for choropleth
+    # Dummy values for choropleth. 
     # -----------------------------
-    value_map = {6: 5.0, 7: 3.5, 8: 4.2, 9: 6.1, 10: 2.8}
+    value_map = {6: 5.0, 7: 3.5, 8: 4.2, 9: 6.1, 10: 2.8} 
     df_vals = pd.DataFrame({"id": list(value_map.keys()), "value": list(value_map.values())})
 
     # -----------------------------
