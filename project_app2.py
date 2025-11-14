@@ -1028,16 +1028,35 @@ def page_map():
 
     group_select = st.selectbox("Select group", sorted(groups))
 
-    col_date1, col_date2 = st.columns(2)
-    with col_date1:
-        start_date = st.date_input("Start date", datetime(2021, 1, 1))
-    with col_date2:
-        end_date = st.date_input("End date", datetime(2024, 12, 31))
+    # Date range selection
+    import datetime as dt
+    
+    MIN_DATE = dt.date(2021, 1, 1)
+    MAX_DATE = dt.date(2024, 12, 31)
 
-    # Prevent reversed dates
+    st.subheader("Select Time Interval")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        start_date = st.date_input(
+            "Start date",
+            value=MIN_DATE,
+            min_value=MIN_DATE,
+            max_value=MAX_DATE
+        )
+
+    with col2:  
+        end_date = st.date_input(
+            "End date",
+            value=MAX_DATE,
+            min_value=MIN_DATE,
+            max_value=MAX_DATE
+        )
+    # --- Validate ---
     if start_date > end_date:
-        st.error("Start date must be earlier than end date.")
-        return
+        st.error("❌ Start date must be **before** end date.")
+        st.stop()
 
     # -----------------------------
     # Query MongoDB
