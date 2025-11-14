@@ -22,6 +22,7 @@ db = client[dbname]
 
 # Collections
 production_collection = db["production_data"]
+consumption_collection = db["consumption_data"]
 
 # -----------------------------
 # ERA5 API fetch function
@@ -1084,6 +1085,43 @@ def page_map():
             st.write(f"Value: {val}")
 
 
+# -----------------------------
+import streamlit as st
+import pandas as pd
+
+def inspect_mongo():
+    st.header("MongoDB Data Inspection")
+
+    st.subheader("Production Data – Sample")
+    prod_sample = list(production_collection.find().limit(5))
+    st.json(prod_sample)
+
+    st.subheader("Production Columns")
+    if prod_sample:
+        prod_df = pd.DataFrame(prod_sample)
+        st.write(prod_df.columns.tolist())
+        st.dataframe(prod_df)
+
+    st.divider()
+
+    st.subheader("Consumption Data – Sample")
+    cons_sample = list(consumption_collection.find().limit(5))
+    st.json(cons_sample)
+
+    st.subheader("Consumption Columns")
+    if cons_sample:
+        cons_df = pd.DataFrame(cons_sample)
+        st.write(cons_df.columns.tolist())
+        st.dataframe(cons_df)
+
+    st.divider()
+
+    st.write("Record counts:")
+    st.write("Production:", production_collection.count_documents({}))
+    st.write("Consumption:", consumption_collection.count_documents({}))
+
+
+
 
 # -----------------------------
 # Navigation
@@ -1096,5 +1134,8 @@ pg_plots = st.Page(page_plots, title="Weather Plots", icon="📈")
 pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
 pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
 
-nav = st.navigation(pages=[pg_home, pg_energy, pg_newA, pg_data, pg_plots, pg_newB, pg_map])
+pg_inspect = st.Page(inspect_mongo, title="Inspect MongoDB", icon="🔍")
+
+
+nav = st.navigation(pages=[pg_home, pg_energy, pg_newA, pg_data, pg_plots, pg_newB, pg_map, pg_inspect])
 nav.run()
