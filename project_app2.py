@@ -1063,8 +1063,11 @@ def page_map():
     # 5. Query database
     # --------------------------------------------------
     @st.cache_data
-    def query_data(group, start, end,
-                   col_group, col_time, col_area, col_kwh, col):
+    def query_data(data_type, group, start, end,
+                col_group, col_time, col_area, col_kwh):
+
+        # Pick the collection INSIDE the function (avoids unhashable args)
+        col = db["production_data"] if data_type == "Production" else db["consumption_data"]
 
         pipeline = [
             {"$match": {
@@ -1085,7 +1088,7 @@ def page_map():
         if df.empty:
             return pd.DataFrame({"id": [], "value": []})
 
-        # Convert NO1→6 etc.
+        # Convert NO1 → 6 etc.
         df["id"] = df["_id"].map(AREA_ID_MAP)
         df["value"] = df["mean_value"].round(0)
         df = df.dropna(subset=["id"])
@@ -1093,9 +1096,16 @@ def page_map():
         return df[["id", "value"]]
 
     df_vals = query_data(
-        group_select, start_date, end_date,
-        col_group, col_time, col_area, col_kwh, col
+        data_type,
+        group_select,
+        start_date,
+        end_date,
+        col_group,
+        col_time,
+        col_area,
+        col_kwh,
     )
+
 
     st.write("Query Result:", df_vals)
 
