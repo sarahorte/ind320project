@@ -1092,6 +1092,7 @@ def page_map():
         # Convert NO3 → 8 etc.
         df["id"] = df["_id"].map(AREA_ID_MAP)
         df["value"] = df["mean_value"]
+        df["value"] = df["value"].round(0)   # OR round(2) if decimals matter
         df = df.dropna(subset=["id"])
 
         return df[["id", "value"]]
@@ -1202,7 +1203,7 @@ def page_map():
             value_display = float(value.iloc[0]) if len(value) else "No data"
 
             st.write(f"Area: {area_name}")
-            st.write(f"Mean kWh: {value_display}")
+            st.write(f"Mean kWh: {value_display:.2f}") # Use 2 decimal places if needed
 
 
 
