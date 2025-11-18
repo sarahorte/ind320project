@@ -1107,8 +1107,6 @@ def page_map():
         col_kwh
     )
 
-    # Debug print
-    st.write("Query Result:", df_vals)
 
     # -----------------------------------------
     # 6. Initialize session state for selection
