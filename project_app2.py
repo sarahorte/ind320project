@@ -1064,14 +1064,18 @@ def page_map():
     # Query MongoDB
     # -----------------------------
     @st.cache_data
-    def query_data(data_type, group, start, end):
+    def query_data(data_type, group, start, end,
+               col_name_group, col_name_time, col_name_area, col_name_kwh):
+    
         col = production_col if data_type == "Production" else consumption_col
 
         pipeline = [
             {"$match": {
                 col_name_group: group,
-                col_name_time: {"$gte": datetime.combine(start, datetime.min.time()),
-                                "$lte": datetime.combine(end, datetime.min.time())}
+                col_name_time: {
+                    "$gte": datetime.combine(start, datetime.min.time()),
+                    "$lte": datetime.combine(end, datetime.min.time())
+                }
             }},
             {"$group": {
                 "_id": f"${col_name_area}",
@@ -1079,16 +1083,28 @@ def page_map():
             }}
         ]
 
-        result = list(col.aggregate(pipeline))
-        df = pd.DataFrame(result)
+        df = pd.DataFrame(list(col.aggregate(pipeline)))
+
         if df.empty:
             return pd.DataFrame({"id": [], "value": []})
 
         df["id"] = df["_id"]
         df["value"] = df["mean_value"]
+
         return df[["id", "value"]]
 
-    df_vals = query_data(data_type, group_select, start_date, end_date)
+
+    df_vals = query_data(
+    data_type,
+    group_select,
+    start_date,
+    end_date,
+    col_name_group,
+    col_name_time,
+    col_name_area,
+    col_name_kwh
+)
+
 
 
     # Initialize session state
@@ -1117,10 +1133,10 @@ def page_map():
             columns=["id", "value"],
             key_on="feature.id",
             fill_color="YlGnBu",
-            fill_opacity=0.6,
+            fill_opacity=0.4,
             line_opacity=0.8,
             line_color="white",
-            nan_fill_opacity=0.1,
+            nan_fill_opacity=0.1, # very transparent for missing
             legend_name=f"Mean {data_type} ({group_select})",
             highlight=True
         ).add_to(m)
@@ -1170,7 +1186,7 @@ def page_map():
         else:
             fid = st.session_state.selected_feature_id
             area_name = id_to_name.get(fid, f"ID {fid}")
-
+        
             value = df_vals.loc[df_vals["id"] == fid, "value"]
             value_display = float(value.iloc[0]) if len(value) else "No data"
 
