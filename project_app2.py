@@ -945,13 +945,13 @@ def page_map():
 
     st.title("Price Areas Map")
 
-    # -----------------------------------------
+ 
     # MongoDB connection (reuse your global one)
     # -----------------------------------------
     production_col = db["production_data"]
     consumption_col = db["consumption_data"]
 
-    # -----------------------------
+
     # Load GeoJSON data
     # -----------------------------
     @st.cache_data
@@ -961,7 +961,7 @@ def page_map():
 
     geojson_data = load_geojson()
 
-    # -----------------------------
+
     # Build ID → Name mapping
     # -----------------------------
     @st.cache_data
@@ -978,8 +978,8 @@ def page_map():
 
     id_to_name = build_id_to_name(geojson_data)
 
-    # -----------------------------
-    # Build polygons for point lookup
+
+    # Build polygons for point lookup. This is the price area geometries.
     # -----------------------------
     if "polygons" not in st.session_state:
         polys = []
@@ -1001,7 +1001,7 @@ def page_map():
                 return fid
         return None
 
-    # -----------------------------
+
     # UI: User selections
     # -----------------------------
     st.subheader("Choropleth Controls")
@@ -1030,7 +1030,7 @@ def page_map():
 
     # Date range selection
     import datetime as dt
-    
+
     MIN_DATE = dt.date(2021, 1, 1)
     MAX_DATE = dt.date(2024, 12, 31)
 
@@ -1058,7 +1058,7 @@ def page_map():
         st.error("❌ Start date must be **before** end date.")
         st.stop()
 
-    # -----------------------------
+
     # Query MongoDB
     # -----------------------------
     @st.cache_data
@@ -1088,7 +1088,7 @@ def page_map():
 
     df_vals = query_data(data_type, group_select, start_date, end_date)
 
-    # -----------------------------
+
     # Initialize session state
     # -----------------------------
     if "last_pin" not in st.session_state:
@@ -1100,7 +1100,7 @@ def page_map():
         lat, lon = st.session_state.last_pin
         st.session_state.selected_feature_id = find_feature_id(lon, lat)
 
-    # -----------------------------
+
     # Layout: map left, info right
     # -----------------------------
     map_col, info_col = st.columns([2.2, 1])
@@ -1155,7 +1155,7 @@ def page_map():
                 st.session_state.selected_feature_id = find_feature_id(lon, lat)
                 st.rerun()
 
-    # -----------------------------
+
     # Info box
     # -----------------------------
     with info_col:
@@ -1174,6 +1174,8 @@ def page_map():
 
             st.write(f"Area: {area_name}")
             st.write(f"Mean value: {value_display}")
+
+
 
 
 
@@ -1212,6 +1214,14 @@ def inspect_mongo():
     st.write("Production:", production_collection.count_documents({}))
     st.write("Consumption:", consumption_collection.count_documents({}))
 
+    # What values does groupName take in consumption data and production data?
+    st.subheader("Distinct groupName values in Consumption Data")
+    cons_groups = consumption_collection.distinct("groupName")
+    st.write(cons_groups)
+
+    st.subheader("Distinct groupName values in Production Data")
+    prod_groups = production_collection.distinct("groupName")
+    st.write(prod_groups)
 
 
 
