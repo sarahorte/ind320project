@@ -995,6 +995,8 @@ def page_map():
         st.session_state.polygons = polys
 
     def find_feature_id(lon: float, lat: float):
+        if shape is None or "polygons" not in st.session_state:
+            return None
         pt = Point(lon, lat)
         for fid, geom in st.session_state.polygons:
             if geom.covers(pt):
