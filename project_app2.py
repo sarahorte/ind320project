@@ -1203,7 +1203,7 @@ def page_map():
             value_display = float(value.iloc[0]) if len(value) else "No data"
 
             st.write(f"Area: {area_name}")
-            st.write(f"Mean kWh: {value_display:.2f}") # Use 2 decimal places if needed
+            st.write(f"Mean kWh: {value_display}") # Use 2 decimal places if needed
 
 
 
