@@ -1061,37 +1061,68 @@ def page_map():
         st.stop()
 
 
+    # price area mapping
+    AREA_ID_MAP = {
+    "NO1": 6,
+    "NO2": 7,
+    "NO3": 8,
+    "NO4": 9,
+    "NO5": 10
+}
+
+
+
+
     # Query MongoDB
     # -----------------------------
     @st.cache_data
-    def query_data(data_type, group, start, end,
-               col_name_group, col_name_time, col_name_area, col_name_kwh):
-    
-        col = production_col if data_type == "Production" else consumption_col
+    def query_data(data_type, group, start, end):
+        
+        if data_type == "Production":
+            col = db["production_data"]
+            col_group = "productiongroup"
+            col_time = "starttime"
+            col_area = "pricearea"
+            col_kwh = "quantitykwh"
+
+        else:
+            col = db["consumption_data"]
+            col_group = "groupName"
+            col_time = "startTime"
+            col_area = "priceArea"
+            col_kwh = "quantityKwh"
 
         pipeline = [
             {"$match": {
-                col_name_group: group,
-                col_name_time: {
+                col_group: group,
+                col_time: {
                     "$gte": datetime.combine(start, datetime.min.time()),
                     "$lte": datetime.combine(end, datetime.min.time())
                 }
             }},
             {"$group": {
-                "_id": f"${col_name_area}",
-                "mean_value": {"$avg": f"${col_name_kwh}"}
+                "_id": f"${col_area}",
+                "mean_value": {"$avg": f"${col_kwh}"}
             }}
         ]
 
-        df = pd.DataFrame(list(col.aggregate(pipeline)))
+    df = pd.DataFrame(list(col.aggregate(pipeline)))
 
-        if df.empty:
-            return pd.DataFrame({"id": [], "value": []})
+    if df.empty:
+        return pd.DataFrame({"id": [], "value": []})
 
-        df["id"] = df["_id"]
-        df["value"] = df["mean_value"]
+    # Convert NO1 → 6 etc.
+    df["id"] = df["_id"].map(AREA_ID_MAP)
+    df["value"] = df["mean_value"]
 
-        return df[["id", "value"]]
+    # Keep only rows with valid area ID
+    df = df.dropna(subset=["id"])
+
+    return df[["id", "value"]]
+
+    st.write("Returned:", df_vals)
+
+
 
 
     df_vals = query_data(
@@ -1103,7 +1134,7 @@ def page_map():
     col_name_time,
     col_name_area,
     col_name_kwh
-)
+    )
 
 
 
