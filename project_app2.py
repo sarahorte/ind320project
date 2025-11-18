@@ -946,15 +946,15 @@ def page_map():
 
     st.title("Price Areas Map")
 
-    # -----------------------------------------
-    # 1. MongoDB Connections
-    # -----------------------------------------
+    # --------------------------------------------------
+    # 1. MongoDB connections
+    # --------------------------------------------------
     production_col = db["production_data"]
     consumption_col = db["consumption_data"]
 
-    # -----------------------------------------
-    # 2. Load GeoJSON + helper mappings
-    # -----------------------------------------
+    # --------------------------------------------------
+    # 2. GeoJSON + ID → Name mapping
+    # --------------------------------------------------
     @st.cache_data
     def load_geojson():
         with open("price_areas.geojson") as f:
@@ -976,7 +976,6 @@ def page_map():
 
     id_to_name = build_id_to_name(geojson_data)
 
-    # Price area name → ID used in GeoJSON
     AREA_ID_MAP = {
         "NO1": 6,
         "NO2": 7,
@@ -985,9 +984,9 @@ def page_map():
         "NO5": 10
     }
 
-    # -----------------------------------------
+    # --------------------------------------------------
     # 3. Build polygons for coordinate lookup
-    # -----------------------------------------
+    # --------------------------------------------------
     if "polygons" not in st.session_state:
         polys = []
         for feat in geojson_data.get("features", []):
@@ -1008,9 +1007,9 @@ def page_map():
                 return fid
         return None
 
-    # -----------------------------------------
-    # 4. UI – Dataset, Group, Date Selection
-    # -----------------------------------------
+    # --------------------------------------------------
+    # 4. UI – Dataset, Group, Dates
+    # --------------------------------------------------
     st.subheader("Choropleth Controls")
 
     data_type = st.radio(
@@ -1019,57 +1018,53 @@ def page_map():
         horizontal=True
     )
 
-    # Select column names depending on dataset
+    # Select columns based on dataset
     if data_type == "Production":
         groups = production_col.distinct("productiongroup")
         col_group = "productiongroup"
         col_time = "starttime"
         col_area = "pricearea"
         col_kwh = "quantitykwh"
+        col = production_col
     else:
         groups = consumption_col.distinct("groupName")
         col_group = "groupName"
         col_time = "startTime"
         col_area = "priceArea"
         col_kwh = "quantityKwh"
+        col = consumption_col
 
     group_select = st.selectbox("Select group", sorted(groups))
 
-    # Date selection
+    # Date range
     MIN_DATE = dt.date(2021, 1, 1)
     MAX_DATE = dt.date(2024, 12, 31)
 
     st.subheader("Select Time Interval")
-    col1, col2 = st.columns(2)
+    colA, colB = st.columns(2)
 
-    with col1:
+    with colA:
         start_date = st.date_input(
-            "Start date",
-            value=MIN_DATE,
-            min_value=MIN_DATE,
-            max_value=MAX_DATE
+            "Start date", value=MIN_DATE,
+            min_value=MIN_DATE, max_value=MAX_DATE
         )
 
-    with col2:
+    with colB:
         end_date = st.date_input(
-            "End date",
-            value=MAX_DATE,
-            min_value=MIN_DATE,
-            max_value=MAX_DATE
+            "End date", value=MAX_DATE,
+            min_value=MIN_DATE, max_value=MAX_DATE
         )
 
     if start_date > end_date:
         st.error("❌ Start date must be before end date.")
         st.stop()
 
-    # -----------------------------------------
-    # 5. Query MongoDB
-    # -----------------------------------------
+    # --------------------------------------------------
+    # 5. Query database
+    # --------------------------------------------------
     @st.cache_data
-    def query_data(data_type, group, start, end,
-                   col_group, col_time, col_area, col_kwh):
-
-        col = production_col if data_type == "Production" else consumption_col
+    def query_data(group, start, end,
+                   col_group, col_time, col_area, col_kwh, col):
 
         pipeline = [
             {"$match": {
@@ -1086,50 +1081,44 @@ def page_map():
         ]
 
         df = pd.DataFrame(list(col.aggregate(pipeline)))
+
         if df.empty:
             return pd.DataFrame({"id": [], "value": []})
 
-        # Convert NO3 → 8 etc.
+        # Convert NO1→6 etc.
         df["id"] = df["_id"].map(AREA_ID_MAP)
-        df["value"] = df["mean_value"]
-        df["value"] = df["value"].round(0)   # OR round(2) if decimals matter
+        df["value"] = df["mean_value"].round(0)
         df = df.dropna(subset=["id"])
 
         return df[["id", "value"]]
 
-    # Call query
     df_vals = query_data(
-        data_type,
-        group_select,
-        start_date,
-        end_date,
-        col_group,
-        col_time,
-        col_area,
-        col_kwh
+        group_select, start_date, end_date,
+        col_group, col_time, col_area, col_kwh, col
     )
 
-    # Debug print
     st.write("Query Result:", df_vals)
 
-    # -----------------------------------------
-    # 6. Initialize session state for selection
-    # -----------------------------------------
+    # --------------------------------------------------
+    # 6. Initialize map selection
+    # --------------------------------------------------
     if "last_pin" not in st.session_state:
-        st.session_state.last_pin = [66.32624933088354, 14.186465980232347]
+        st.session_state.last_pin = [66.33, 14.18]
+
     if "selected_feature_id" not in st.session_state:
-        st.session_state.selected_feature_id = None
+        st.session_state.selected_feature_id = find_feature_id(
+            st.session_state.last_pin[1],
+            st.session_state.last_pin[0]
+        )
 
-    if st.session_state.selected_feature_id is None:
-        lat, lon = st.session_state.last_pin
-        st.session_state.selected_feature_id = find_feature_id(lon, lat)
-
-    # -----------------------------------------
+    # --------------------------------------------------
     # 7. Layout: Map + Info
-    # -----------------------------------------
+    # --------------------------------------------------
     map_col, info_col = st.columns([2.2, 1])
 
-    # ===== Map =====
+    # ==================================================
+    # MAP COLUMN
+    # ==================================================
     with map_col:
         m = folium.Map(
             location=st.session_state.last_pin,
@@ -1137,31 +1126,31 @@ def page_map():
             tiles="OpenStreetMap"
         )
 
-        # Choropleth
+        # --- CHOROPLETH ---
         folium.Choropleth(
             geo_data=geojson_data,
             data=df_vals,
             columns=["id", "value"],
             key_on="feature.id",
             fill_color="YlGnBu",
-            fill_opacity=0.4,
-            line_opacity=0.8,
+            fill_opacity=0.55,
+            line_opacity=0.7,
             line_color="white",
-            nan_fill_opacity=0.1,
+            nan_fill_opacity=0.15,
             legend_name=f"Mean {data_type} ({group_select})",
             highlight=True
         ).add_to(m)
 
-        # Highlight the selected polygon
+        # --- HIGHLIGHT SELECTED POLYGON ---
         sel_id = st.session_state.selected_feature_id
         if sel_id is not None:
-            selected_feats = [
-                f for f in geojson_data.get("features", [])
+            selected = [
+                f for f in geojson_data["features"]
                 if f.get("id") == sel_id
             ]
-            if selected_feats:
+            if selected:
                 folium.GeoJson(
-                    {"type": "FeatureCollection", "features": selected_feats},
+                    {"type": "FeatureCollection", "features": selected},
                     style_function=lambda f: {
                         "fillOpacity": 0,
                         "color": "red",
@@ -1169,42 +1158,62 @@ def page_map():
                     }
                 ).add_to(m)
 
-        # Pin marker
+        # --- PIN MARKER ---
         folium.Marker(
             location=st.session_state.last_pin,
             icon=folium.Icon(color="red")
         ).add_to(m)
 
-        # Update map click
-        out = st_folium(m, key="choropleth_map", height=600)
+        # --- Render in Streamlit ---
+        out = st_folium(m, height=600, key="map")
 
+        # --- CLICK HANDLING ---
         if out and out.get("last_clicked"):
             lat = out["last_clicked"]["lat"]
             lon = out["last_clicked"]["lng"]
-            new_coord = [lat, lon]
-            if new_coord != st.session_state.last_pin:
-                st.session_state.last_pin = new_coord
-                st.session_state.selected_feature_id = find_feature_id(lon, lat)
-                st.rerun()
+            st.session_state.last_pin = [lat, lon]
+            st.session_state.selected_feature_id = find_feature_id(lon, lat)
+            st.rerun()
 
-    # ===== Info Box =====
+        # --------------------------------------------------
+        # FIX LEGEND — make smaller & move down-left
+        # --------------------------------------------------
+        st.markdown("""
+            <style>
+            #maplegend {
+                position: absolute;
+                z-index: 9999;
+                background-color: rgba(255, 255, 255, 0.90);
+                padding: 10px 14px;
+                border-radius: 6px;
+                font-size: 12px;
+                bottom: 20px;   /* Move away from map colors */
+                left: 20px;
+                line-height: 1.3;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
+    # ==================================================
+    # INFO COLUMN
+    # ==================================================
     with info_col:
         st.subheader("Selection")
         st.write(f"Lat: {st.session_state.last_pin[0]:.6f}")
         st.write(f"Lon: {st.session_state.last_pin[1]:.6f}")
 
         fid = st.session_state.selected_feature_id
+
         if fid is None:
             st.write("Outside any price area.")
         else:
             area_name = id_to_name.get(fid, f"ID {fid}")
-            value = df_vals.loc[df_vals["id"] == fid, "value"]
+            val = df_vals.loc[df_vals["id"] == fid, "value"]
 
-            value_display = float(value.iloc[0]) if len(value) else "No data"
+            value_display = f"{val.iloc[0]:,.0f}" if len(val) else "No data"
 
-            st.write(f"Area: {area_name}")
-            st.write(f"Mean kWh: {value_display}") # Use 2 decimal places if needed
-
+            st.write(f"Area: **{area_name}**")
+            st.write(f"Mean kWh: **{value_display}**")
 
 
 
