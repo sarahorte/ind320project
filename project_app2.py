@@ -1106,19 +1106,19 @@ def page_map():
             }}
         ]
 
-    df = pd.DataFrame(list(col.aggregate(pipeline)))
+        df = pd.DataFrame(list(col.aggregate(pipeline)))
 
-    if df.empty:
-        return pd.DataFrame({"id": [], "value": []})
+        if df.empty:
+            return pd.DataFrame({"id": [], "value": []})
 
-    # Convert NO1 → 6 etc.
-    df["id"] = df["_id"].map(AREA_ID_MAP)
-    df["value"] = df["mean_value"]
+        # Convert NO1 → 6 etc.
+        df["id"] = df["_id"].map(AREA_ID_MAP)
+        df["value"] = df["mean_value"]
 
-    # Keep only rows with valid area ID
-    df = df.dropna(subset=["id"])
+        # Keep only rows with valid area ID
+        df = df.dropna(subset=["id"])
 
-    return df[["id", "value"]]
+        return df[["id", "value"]]
 
     st.write("Returned:", df_vals)
 
