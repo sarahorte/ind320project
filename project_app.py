@@ -1207,6 +1207,9 @@ def page_map():
             st.write(f"Mean kWh: {value_display}")
 
 
+
+
+
 # -----------------------------
 import streamlit as st
 import pandas as pd
