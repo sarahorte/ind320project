@@ -1180,7 +1180,7 @@ def page_map():
         <style>
         .legend {
             font-size: 3px !important;
-            line-height: 10px !important;
+            line-height: 3px !important;
         }
         .legend i {
             width: 10px !important;
