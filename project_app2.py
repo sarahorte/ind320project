@@ -1173,9 +1173,6 @@ def page_map():
         ).add_to(m)
 
 
-        # make legend on the map smaller for better appearance
-        folium.map.LayerControl(position='topright', collapsed=True).add_to(m)
-
 
         # Update map click
         out = st_folium(m, key="choropleth_map", height=600)
