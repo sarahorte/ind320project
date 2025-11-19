@@ -1174,7 +1174,7 @@ def page_map():
 
         # make the map a bit more zoomed out to see context. What to change to get less zoomed out? 
         m.fit_bounds(m.get_bounds(), padding=(15, 15))
-        m.options['zoom'] = 6   # increase number = more zoomed in
+        m.options['zoom'] = 15   # increase number = more zoomed in
 
 
 
