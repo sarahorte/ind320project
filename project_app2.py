@@ -1148,10 +1148,6 @@ def page_map():
             highlight=True
         ).add_to(m)
 
-        # Move legend slightly lower so it doesn't overlay the map
-        choropleth.geojson.add_child(
-            folium.features.GeoJsonTooltip(fields=["id"])
-        )
 
         # Highlight the selected polygon
         sel_id = st.session_state.selected_feature_id
