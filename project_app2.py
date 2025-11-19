@@ -1172,6 +1172,26 @@ def page_map():
             icon=folium.Icon(color="red")
         ).add_to(m)
 
+
+        # Make legend text smaller
+        legend_css = """
+        <style>
+        .leaflet-control .legend {
+            font-size: 10px !important;     /* smaller numbers */
+            line-height: 10px !important;   /* tighter spacing */
+        }
+        .leaflet-control .legend i {
+            width: 14px !important;         /* shrink color boxes */
+            height: 14px !important;
+        }
+        </style>
+        """
+        st.markdown(legend_css, unsafe_allow_html=True)
+
+
+        # Add CSS to modify legend
+        st.markdown(legend_css, unsafe_allow_html=True)
+
         # Update map click
         out = st_folium(m, key="choropleth_map", height=600)
 
