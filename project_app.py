@@ -1268,6 +1268,10 @@ def inspect_mongo():
     prod_areas = production_collection.distinct("pricearea")
     st.write(prod_areas)
 
+    # how many record have NULL as pricearea in production data?
+    null_pricearea_count = production_collection.count_documents({"pricearea": None})
+    st.write("Records with NULL pricearea in Production Data:", null_pricearea_count)
+
 
 
 # -----------------------------
