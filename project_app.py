@@ -1087,7 +1087,7 @@ def inspect_mongo():
 
 
 # -----------------------------
-# Navigation
+# Navigation setup
 # -----------------------------
 pg_home = st.Page(page_home, title="Home", icon="🏠")
 pg_energy = st.Page(page_energy, title="Energy Production", icon="⚙️")
@@ -1096,9 +1096,8 @@ pg_data = st.Page(page_data_table, title="Weather Data", icon="📋")
 pg_plots = st.Page(page_plots, title="Weather Plots", icon="📈")
 pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
 pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
-
 pg_inspect = st.Page(inspect_mongo, title="Inspect MongoDB", icon="🔍")
-
 
 nav = st.navigation(pages=[pg_home, pg_energy, pg_newA, pg_data, pg_plots, pg_newB, pg_map, pg_inspect])
 nav.run()
+
