@@ -1173,22 +1173,8 @@ def page_map():
         ).add_to(m)
 
 
-        # Inject CSS into map iframe
-        from branca.element import Element
-
-        legend_css = """
-        <style>
-        .legend {
-            font-size: 1px !important;
-            line-height: 3px !important;
-        }
-        .legend i {
-            width: 10px !important;
-            height: 10px !important;
-        }
-        </style>
-        """
-        m.get_root().html.add_child(Element(legend_css))
+        # make legend on the map smaller for better appearance
+        folium.map.LayerControl(position='topright', collapsed=True).add_to(m)
 
 
         # Update map click
