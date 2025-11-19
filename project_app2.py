@@ -1173,7 +1173,11 @@ def page_map():
         ).add_to(m)
 
         # make the map a bit more zoomed out to see context. What to change to get less zoomed out? 
-        m.fit_bounds(m.get_bounds(), padding=(15, 15))
+        m = folium.Map(
+            location=[65.0, 12.0],   # choose your center point
+            zoom_start=5.3,          # increase number = more zoomed in
+        )
+
 
 
         # Update map click
