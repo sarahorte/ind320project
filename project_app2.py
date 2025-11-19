@@ -1172,6 +1172,9 @@ def page_map():
             icon=folium.Icon(color="red")
         ).add_to(m)
 
+        # make the map a bit more zoomed out to see context
+        m.fit_bounds(m.get_bounds(), padding=(30, 30))
+
 
         # Update map click
         out = st_folium(m, key="choropleth_map", height=600)
