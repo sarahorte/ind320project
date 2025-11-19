@@ -453,9 +453,20 @@ def page_energy():
         selected_area = st.radio("Select Price Area", price_areas)
         st.session_state["selected_area"] = selected_area
 
-        data = list(production_collection.find({"pricearea": selected_area}))
+        # If the user selected 'None', fetch all areas
+        if selected_area == "None":
+            query = {}  # no filter, get all documents
+        else:
+            query = {"pricearea": selected_area}
+
+        data = list(production_collection.find(query))
+
+
         if data:
             df_area = pd.DataFrame(data)
+            df_area.columns = df_area.columns.str.strip()
+            
+            # Group and plot
             df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
             fig = px.pie(
                 df_grouped,
@@ -463,11 +474,12 @@ def page_energy():
                 names="productiongroup",
                 title=f"Total Production for {selected_area}",
                 color="productiongroup",
-                color_discrete_map=color_map  # 👈 fixed consistent colors
+                color_discrete_map=color_map
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.write("No data found for this price area.")
+            st.write("No data found for this selection.")
+
 
     with col2:
         production_groups = list(production_collection.distinct("productiongroup"))
