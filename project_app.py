@@ -453,19 +453,18 @@ def page_energy():
         selected_area = st.radio("Select Price Area", price_areas)
         st.session_state["selected_area"] = selected_area
 
-        # If the user selected 'None', fetch all areas
-        if selected_area == "None":
-            query = {}  # no filter, get all documents
-        else:
-            query = {"pricearea": selected_area}
+        # Set default selection
+        if not selected_area:
+            selected_area = "NO1"
 
+        # Query MongoDB only for the selected area
+        query = {"pricearea": selected_area}
         data = list(production_collection.find(query))
-
 
         if data:
             df_area = pd.DataFrame(data)
-            df_area.columns = df_area.columns.str.strip()
-            
+            df_area.columns = df_area.columns.str.strip()  # remove any hidden spaces
+
             # Group and plot
             df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
             fig = px.pie(
@@ -478,7 +477,8 @@ def page_energy():
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.write("No data found for this selection.")
+            st.write(f"No data found for price area {selected_area}.")
+
 
 
     with col2:
