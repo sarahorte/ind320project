@@ -1263,6 +1263,11 @@ def inspect_mongo():
     prod_groups = production_collection.distinct("groupName")
     st.write(prod_groups)
 
+    # what distinct pricearea values are in production data?
+    st.subheader("Distinct pricearea values in Production Data")
+    prod_areas = production_collection.distinct("pricearea")
+    st.write(prod_areas)
+
 
 
 # -----------------------------
