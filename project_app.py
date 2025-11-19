@@ -1026,11 +1026,11 @@ def page_map():
         col_area = "pricearea"
         col_kwh = "quantitykwh"
     else:
-        groups = consumption_col.distinct("groupName")
-        col_group = "groupName"
-        col_time = "startTime"
-        col_area = "priceArea"
-        col_kwh = "quantityKwh"
+        groups = consumption_col.distinct("groupname")
+        col_group = "groupname"
+        col_time = "starttime"
+        col_area = "pricearea"
+        col_kwh = "quantitykwh"
 
     group_select = st.selectbox("Select group", sorted(groups))
 
