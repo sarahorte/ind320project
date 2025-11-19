@@ -1172,12 +1172,6 @@ def page_map():
             icon=folium.Icon(color="red")
         ).add_to(m)
 
-        # make the numbers corresponding to the mean kwh choropleth appear when hovering over the areas
-        folium.GeoJsonTooltip(
-            fields=["ElSpotOmr"],
-            aliases=["Price Area:"],
-            localize=True
-        ).add_to(m)
 
         # Update map click
         out = st_folium(m, key="choropleth_map", height=600)
