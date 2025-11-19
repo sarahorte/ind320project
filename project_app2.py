@@ -1177,8 +1177,8 @@ def page_map():
         legend_css = """
         <style>
         .leaflet-control .legend {
-            font-size: 10px !important;     /* smaller numbers */
-            line-height: 10px !important;   /* tighter spacing */
+            font-size: 3px !important;     /* smaller numbers */
+            line-height: 3px !important;   /* tighter spacing */
         }
         .leaflet-control .legend i {
             width: 14px !important;         /* shrink color boxes */
