@@ -1173,24 +1173,23 @@ def page_map():
         ).add_to(m)
 
 
-        # Make legend text smaller
+        # Inject CSS into map iframe
+        from branca.element import Element
+
         legend_css = """
         <style>
-        .leaflet-control .legend {
-            font-size: 3px !important;     /* smaller numbers */
-            line-height: 3px !important;   /* tighter spacing */
+        .legend {
+            font-size: 8px !important;
+            line-height: 10px !important;
         }
-        .leaflet-control .legend i {
-            width: 14px !important;         /* shrink color boxes */
-            height: 14px !important;
+        .legend i {
+            width: 10px !important;
+            height: 10px !important;
         }
         </style>
         """
-        st.markdown(legend_css, unsafe_allow_html=True)
+        m.get_root().html.add_child(Element(legend_css))
 
-
-        # Add CSS to modify legend
-        st.markdown(legend_css, unsafe_allow_html=True)
 
         # Update map click
         out = st_folium(m, key="choropleth_map", height=600)
