@@ -1172,8 +1172,8 @@ def page_map():
             icon=folium.Icon(color="red")
         ).add_to(m)
 
-        # make the map a bit more zoomed out to see context
-        m.fit_bounds(m.get_bounds(), padding=(30, 30))
+        # make the map a bit more zoomed out to see context. What to change to get less zoomed out? 
+        m.fit_bounds(m.get_bounds(), padding=(25, 25))
 
 
         # Update map click
