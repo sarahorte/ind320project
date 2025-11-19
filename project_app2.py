@@ -19,7 +19,10 @@ dbname = st.secrets["mongodb"]["dbname"]
 uri = f"mongodb+srv://{user}:{pwd}@{cluster}/?retryWrites=true&w=majority"
 client = MongoClient(uri)
 db = client[dbname]
-collection = db['production_data']
+
+# Collections
+production_collection = db["production_data"]
+consumption_collection = db["consumption_data"]
 
 # -----------------------------
 # ERA5 API fetch function
@@ -340,12 +343,12 @@ def stl_decomposition_plotly_subplots(
 
 
 
-
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 from scipy.signal import stft
+import plotly.graph_objects as go
 
-def matplotlib_spectrogram(
+def plotly_spectrogram(
     df,
     price_area='NO1',
     production_group='hydro',
@@ -354,7 +357,7 @@ def matplotlib_spectrogram(
     fs=1                 # sampling frequency (1 per hour)
 ):
     """
-    Compute and plot a spectrogram for electricity production data using Matplotlib.
+    Compute and plot a spectrogram for electricity production data using Plotly.
 
     Parameters
     ----------
@@ -380,29 +383,45 @@ def matplotlib_spectrogram(
     Zxx : np.ndarray
         STFT complex values.
     """
-    # Filter data
-    ts = df[(df['priceArea'].str.lower() == price_area.lower()) &
-            (df['productionGroup'].str.lower() == production_group.lower())]['quantityKwh']
-    
+    # --- Filter data ---
+    ts = df[
+        (df['priceArea'].str.lower() == price_area.lower()) &
+        (df['productionGroup'].str.lower() == production_group.lower())
+    ]['quantityKwh']
+
     if ts.empty:
         raise ValueError(f"No data for price area '{price_area}' and production group '{production_group}'")
-    
+
     ts = ts.asfreq('h').ffill()
-    
-    # Compute STFT
+
+    # --- Compute STFT ---
     f, t, Zxx = stft(ts.values, fs=fs, nperseg=window_length, noverlap=window_overlap)
-    
-    # Plot with Matplotlib
-    plt.figure(figsize=(12, 5))
-    plt.pcolormesh(t, f, np.abs(Zxx), shading='gouraud', cmap='viridis', vmin=0, vmax=np.max(np.abs(Zxx)))
-    plt.title(f'Spectrogram: {production_group} in {price_area}')
-    plt.ylabel('Frequency [1/hour]')
-    plt.xlabel('Time [hours]')
-    plt.colorbar(label='Amplitude')
-    plt.tight_layout()
-    plt.show()
-    
+    amplitude = np.abs(Zxx)
+
+    # --- Create interactive spectrogram ---
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=amplitude,
+            x=t,
+            y=f,
+            colorscale='Viridis',
+            colorbar=dict(title='Amplitude'),
+        )
+    )
+
+    fig.update_layout(
+        title=f"Spectrogram: {production_group.capitalize()} in {price_area.upper()}",
+        xaxis_title="Time [hours]",
+        yaxis_title="Frequency [1/hour]",
+        template="plotly_dark",
+        height=500,
+        width=1000,
+    )
+
+    fig.show()
+
     return f, t, Zxx
+
 
 
 
@@ -430,11 +449,11 @@ def page_energy():
     }
 
     with col1:
-        price_areas = collection.distinct("pricearea")
+        price_areas = production_collection.distinct("pricearea")
         selected_area = st.radio("Select Price Area", price_areas)
         st.session_state["selected_area"] = selected_area
 
-        data = list(collection.find({"pricearea": selected_area}))
+        data = list(production_collection.find({"pricearea": selected_area}))
         if data:
             df_area = pd.DataFrame(data)
             df_grouped = df_area.groupby("productiongroup")["quantitykwh"].sum().reset_index()
@@ -451,7 +470,7 @@ def page_energy():
             st.write("No data found for this price area.")
 
     with col2:
-        production_groups = list(collection.distinct("productiongroup"))
+        production_groups = list(production_collection.distinct("productiongroup"))
         selected_groups = st.pills(
             label="Select Production Groups",
             options=production_groups,
@@ -470,7 +489,7 @@ def page_energy():
                 "$lt": pd.Timestamp(2021, month_num + 1, 1) if month_num < 12 else pd.Timestamp(2022, 1, 1)
             }
         }
-        data_filtered = list(collection.find(query))
+        data_filtered = list(production_collection.find(query))
         if data_filtered:
             df_filtered = pd.DataFrame(data_filtered)
             df_filtered["starttime"] = pd.to_datetime(df_filtered["starttime"])
@@ -510,11 +529,11 @@ def page_newA():
     selected_area = st.session_state.get("selected_area", "NO1")
 
     # Get available production groups from MongoDB
-    production_groups = collection.distinct("productiongroup")
+    production_groups = production_collection.distinct("productiongroup")
     selected_group = st.selectbox("Select Production Group", production_groups, index=0)
 
     # --- Load Elhub data from MongoDB ---
-    data = list(collection.find({"pricearea": selected_area, "productiongroup": selected_group}))
+    data = list(production_collection.find({"pricearea": selected_area, "productiongroup": selected_group}))
     if not data:
         st.warning(f"No production data found for {selected_area} ({selected_group}).")
         return
@@ -641,7 +660,7 @@ def page_newA():
                 help="Overlap between segments"
             )
 
-        # Again, fix column names for the spectrogram function
+        # Fix column names for the spectrogram function
         df_spec = df_prod.rename(
             columns={
                 "pricearea": "priceArea",
@@ -651,7 +670,8 @@ def page_newA():
         )
 
         try:
-            f, t, Zxx = matplotlib_spectrogram(
+            # --- Use Plotly-based spectrogram ---
+            f, t, Zxx = plotly_spectrogram(
                 df_spec,
                 price_area=selected_area,
                 production_group=selected_group,
@@ -660,10 +680,30 @@ def page_newA():
                 fs=1
             )
 
-            st.pyplot(plt.gcf())
+            # Display interactive Plotly chart in Streamlit
+            power = np.abs(Zxx)
+            fig = go.Figure(
+                data=go.Heatmap(
+                    z=power,
+                    x=t,
+                    y=f,
+                    colorscale='Viridis',
+                    colorbar=dict(title='Amplitude'),
+                )
+            )
+
+            fig.update_layout(
+                title=f"Spectrogram: {selected_group.capitalize()} in {selected_area.upper()}",
+                xaxis_title="Time [hours]",
+                yaxis_title="Frequency [1/hour]",
+                template="plotly_dark",
+                height=500,
+                width=1000,
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
 
             # Power summary
-            power = np.abs(Zxx)
             st.markdown("#### Frequency Domain Summary")
             df_summary = pd.DataFrame({
                 "Mean Power": [power.mean()],
@@ -682,6 +722,7 @@ def page_newA():
             - Weekly cycles → frequency ≈ 1/168  
             Peaks highlight periodic production behavior.
             """)
+
 
 
 
@@ -730,53 +771,92 @@ def page_data_table():
     st.dataframe(df_series, column_config=column_config, use_container_width=True)
 
 # -----------------------------
-# Page: Interactive plots
+# Page: Interactive plots (Plotly version)
 # -----------------------------
+import plotly.graph_objects as go
+
 def page_plots():
     st.title("Weather Plots 2021")
     selected_area = st.session_state.get("selected_area", "NO1")
-    # Get the city corresponding to the selected area
-    city_name = df_price_areas.loc[df_price_areas['price_area'] == selected_area, 'city'].values[0]
+
+    # Get city corresponding to the selected area
+    city_name = df_price_areas.loc[
+        df_price_areas['price_area'] == selected_area, 'city'
+    ].values[0]
+
     df_weather = load_weather_data(selected_area)
     if df_weather.empty:
         st.warning(f"No weather data for {selected_area}")
         return
 
+    # User controls
     choice = st.selectbox("Select variable", ["All"] + df_weather.columns.tolist(), index=0)
     month_range = st.select_slider(
-        "Select month range", options=list(range(1,13)), value=(1,1),
+        "Select month range", options=list(range(1, 13)), value=(1, 1),
         format_func=lambda x: MONTH_NAMES[x]
     )
     start_month, end_month = month_range
 
-    df_sel = df_weather[(df_weather.index.month >= start_month) & (df_weather.index.month <= end_month)]
-    fig, ax1 = plt.subplots(figsize=(12,6))
+    # Filter by selected months
+    df_sel = df_weather[
+        (df_weather.index.month >= start_month) & (df_weather.index.month <= end_month)
+    ]
 
-    # Columns for left y-axis (all except wind_direction_10m)
+    # Prepare figure
+    fig = go.Figure()
     left_columns = [c for c in df_sel.columns if c != 'wind_direction_10m']
 
+    # --- Left Y-axis (temp, wind speed, gusts) ---
     if choice == "All":
         for col in left_columns:
-            ax1.plot(df_sel.index, df_sel[col], label=col)
-        ax1.set_ylabel("Temperature / Wind speed / Gusts")
-    elif choice != 'wind_direction_10m':
-        ax1.plot(df_sel.index, df_sel[choice], label=choice)
-        ax1.set_ylabel(choice)
+            fig.add_trace(go.Scatter(
+                x=df_sel.index, y=df_sel[col],
+                mode='lines',
+                name=col
+            ))
+        yaxis_title_left = "Temperature / Wind Speed / Gusts"
+    elif choice != "wind_direction_10m":
+        fig.add_trace(go.Scatter(
+            x=df_sel.index, y=df_sel[choice],
+            mode='lines',
+            name=choice
+        ))
+        yaxis_title_left = choice
+    else:
+        yaxis_title_left = "Temperature / Wind Speed / Gusts"
 
-    # Right y-axis for wind direction. 
+    # --- Right Y-axis (wind direction) ---
     if 'wind_direction_10m' in df_sel.columns and (choice == "All" or choice == 'wind_direction_10m'):
-        ax2 = ax1.twinx()
-        ax2.plot(df_sel.index, df_sel['wind_direction_10m'], color='lightgray', label='Wind Direction')
-        ax2.set_ylabel("Wind Direction (°)")
-        ax2.set_ylim(0, 360)
-        ax2.legend(loc='upper right')
+        fig.add_trace(go.Scatter(
+            x=df_sel.index, y=df_sel['wind_direction_10m'],
+            mode='lines',
+            name='Wind Direction (°)',
+            yaxis='y2',
+            line=dict(color='lightgray', dash='dot')
+        ))
 
-    ax1.set_title(f"Weather in {selected_area} ({city_name}) for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}")
-    ax1.set_xlabel("Time")
-    ax1.legend(loc='upper left')
-    ax1.grid(True)
-    fig.autofmt_xdate()
-    st.pyplot(fig)
+    # Layout configuration
+    fig.update_layout(
+        title=f"Weather in {selected_area} ({city_name}) for months {MONTH_NAMES[start_month]} – {MONTH_NAMES[end_month]}",
+        xaxis=dict(title="Time"),
+        yaxis=dict(title=yaxis_title_left),
+        yaxis2=dict(
+            title="Wind Direction (°)",
+            overlaying="y",
+            side="right",
+            range=[0, 360],
+            showgrid=False
+        ),
+        legend=dict(orientation="h", y=-0.2),
+        template="plotly_white",
+        hovermode="x unified",
+        height=600
+    )
+
+    # Show in Streamlit
+    st.plotly_chart(fig, use_container_width=True)
+
+
 
 
 # -----------------------------
@@ -850,6 +930,329 @@ def page_newB():
             st.table(summary_df)
 
 
+
+# -----------------------------
+# Page: Price Areas Map
+# -----------------------------
+def page_map():
+    import folium
+    from streamlit_folium import st_folium
+    import json
+    import pandas as pd
+    from shapely.geometry import shape, Point
+    from datetime import datetime
+    import datetime as dt
+
+    st.title("Price Areas Map")
+
+    # -----------------------------------------
+    # 1. MongoDB Connections
+    # -----------------------------------------
+    production_col = db["production_data"]
+    consumption_col = db["consumption_data"]
+
+    # -----------------------------------------
+    # 2. Load GeoJSON + helper mappings
+    # -----------------------------------------
+    @st.cache_data
+    def load_geojson():
+        with open("price_areas.geojson") as f:
+            return json.load(f)
+
+    geojson_data = load_geojson()
+
+    @st.cache_data
+    def build_id_to_name(gj):
+        out = {}
+        for f in gj.get("features", []):
+            fid = f.get("id") or (f.get("properties") or {}).get("id")
+            if fid is None:
+                continue
+            name = (f.get("properties") or {}).get("ElSpotOmr")
+            if name:
+                out[fid] = str(name)
+        return out
+
+    id_to_name = build_id_to_name(geojson_data)
+
+    # Price area name → ID used in GeoJSON
+    AREA_ID_MAP = {
+        "NO1": 6,
+        "NO2": 7,
+        "NO3": 8,
+        "NO4": 9,
+        "NO5": 10
+    }
+
+    # -----------------------------------------
+    # 3. Build polygons for coordinate lookup
+    # -----------------------------------------
+    if "polygons" not in st.session_state:
+        polys = []
+        for feat in geojson_data.get("features", []):
+            fid = feat.get("id") or (feat.get("properties") or {}).get("id")
+            if not fid:
+                continue
+            try:
+                geom = shape(feat["geometry"])
+            except Exception:
+                continue
+            polys.append((fid, geom))
+        st.session_state.polygons = polys
+
+    def find_feature_id(lon: float, lat: float):
+        pt = Point(lon, lat)
+        for fid, geom in st.session_state.polygons:
+            if geom.covers(pt):
+                return fid
+        return None
+
+    # -----------------------------------------
+    # 4. UI – Dataset, Group, Date Selection
+    # -----------------------------------------
+    st.subheader("Choropleth Controls")
+
+    data_type = st.radio(
+        "Dataset",
+        ["Production", "Consumption"],
+        horizontal=True
+    )
+
+    # Select column names depending on dataset
+    if data_type == "Production":
+        groups = production_col.distinct("productiongroup")
+        col_group = "productiongroup"
+        col_time = "starttime"
+        col_area = "pricearea"
+        col_kwh = "quantitykwh"
+    else:
+        groups = consumption_col.distinct("groupName")
+        col_group = "groupName"
+        col_time = "startTime"
+        col_area = "priceArea"
+        col_kwh = "quantityKwh"
+
+    group_select = st.selectbox("Select group", sorted(groups))
+
+    # Date selection
+    MIN_DATE = dt.date(2021, 1, 1)
+    MAX_DATE = dt.date(2024, 12, 31)
+
+    st.subheader("Select Time Interval")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        start_date = st.date_input(
+            "Start date",
+            value=MIN_DATE,
+            min_value=MIN_DATE,
+            max_value=MAX_DATE
+        )
+
+    with col2:
+        end_date = st.date_input(
+            "End date",
+            value=MAX_DATE,
+            min_value=MIN_DATE,
+            max_value=MAX_DATE
+        )
+
+    if start_date > end_date:
+        st.error("❌ Start date must be before end date.")
+        st.stop()
+
+    # -----------------------------------------
+    # 5. Query MongoDB
+    # -----------------------------------------
+    @st.cache_data
+    def query_data(data_type, group, start, end,
+                   col_group, col_time, col_area, col_kwh):
+
+        col = production_col if data_type == "Production" else consumption_col
+
+        pipeline = [
+            {"$match": {
+                col_group: group,
+                col_time: {
+                    "$gte": datetime.combine(start, datetime.min.time()),
+                    "$lte": datetime.combine(end, datetime.max.time())
+                }
+            }},
+            {"$group": {
+                "_id": f"${col_area}",
+                "mean_value": {"$avg": f"${col_kwh}"}
+            }}
+        ]
+
+        df = pd.DataFrame(list(col.aggregate(pipeline)))
+        if df.empty:
+            return pd.DataFrame({"id": [], "value": []})
+
+        # Convert NO3 → 8 etc.
+        df["id"] = df["_id"].map(AREA_ID_MAP)
+        df["value"] = df["mean_value"]
+        df = df.dropna(subset=["id"])
+
+        return df[["id", "value"]]
+
+    # Call query
+    df_vals = query_data(
+        data_type,
+        group_select,
+        start_date,
+        end_date,
+        col_group,
+        col_time,
+        col_area,
+        col_kwh
+    )
+
+
+    # -----------------------------------------
+    # 6. Initialize session state for selection
+    # -----------------------------------------
+    if "last_pin" not in st.session_state:
+        st.session_state.last_pin = [66.32624933088354, 14.186465980232347]
+    if "selected_feature_id" not in st.session_state:
+        st.session_state.selected_feature_id = None
+
+    if st.session_state.selected_feature_id is None:
+        lat, lon = st.session_state.last_pin
+        st.session_state.selected_feature_id = find_feature_id(lon, lat)
+
+    # -----------------------------------------
+    # 7. Layout: Map + Info
+    # -----------------------------------------
+    map_col, info_col = st.columns([2.2, 1])
+
+    # ===== Map =====
+    with map_col:
+        m = folium.Map(
+            location=st.session_state.last_pin,
+            zoom_start=5,
+            tiles="OpenStreetMap"
+        )
+
+        # Choropleth
+        folium.Choropleth(
+            geo_data=geojson_data,
+            data=df_vals,
+            columns=["id", "value"],
+            key_on="feature.id",
+            fill_color="YlGnBu",
+            fill_opacity=0.4,
+            line_opacity=0.8,
+            line_color="white",
+            nan_fill_opacity=0.1,
+            legend_name=f"Mean {data_type} ({group_select})",
+            highlight=True
+        ).add_to(m)
+
+
+        # Highlight the selected polygon
+        sel_id = st.session_state.selected_feature_id
+        if sel_id is not None:
+            selected_feats = [
+                f for f in geojson_data.get("features", [])
+                if f.get("id") == sel_id
+            ]
+            if selected_feats:
+                folium.GeoJson(
+                    {"type": "FeatureCollection", "features": selected_feats},
+                    style_function=lambda f: {
+                        "fillOpacity": 0,
+                        "color": "red",
+                        "weight": 3
+                    }
+                ).add_to(m)
+
+        # Pin marker
+        folium.Marker(
+            location=st.session_state.last_pin,
+            icon=folium.Icon(color="red")
+        ).add_to(m)
+
+        # make the map a bit more zoomed out to see context
+        m.fit_bounds(m.get_bounds(), padding=(15, 15))
+
+
+        # Update map click
+        out = st_folium(m, key="choropleth_map", height=600)
+
+        if out and out.get("last_clicked"):
+            lat = out["last_clicked"]["lat"]
+            lon = out["last_clicked"]["lng"]
+            new_coord = [lat, lon]
+            if new_coord != st.session_state.last_pin:
+                st.session_state.last_pin = new_coord
+                st.session_state.selected_feature_id = find_feature_id(lon, lat)
+                st.rerun()
+
+    # ===== Info Box =====
+    with info_col:
+        st.subheader("Selection")
+        st.write(f"Lat: {st.session_state.last_pin[0]:.6f}")
+        st.write(f"Lon: {st.session_state.last_pin[1]:.6f}")
+
+        fid = st.session_state.selected_feature_id
+        if fid is None:
+            st.write("Outside any price area.")
+        else:
+            area_name = id_to_name.get(fid, f"ID {fid}")
+            value = df_vals.loc[df_vals["id"] == fid, "value"]
+
+            value_display = float(value.iloc[0]) if len(value) else "No data"
+
+            st.write(f"Area: {area_name}")
+            st.write(f"Mean kWh: {value_display}")
+
+
+# -----------------------------
+import streamlit as st
+import pandas as pd
+
+def inspect_mongo():
+    st.header("MongoDB Data Inspection")
+
+    st.subheader("Production Data – Sample")
+    prod_sample = list(production_collection.find().limit(5))
+    st.json(prod_sample)
+
+    st.subheader("Production Columns")
+    if prod_sample:
+        prod_df = pd.DataFrame(prod_sample)
+        st.write(prod_df.columns.tolist())
+        st.dataframe(prod_df)
+
+    st.divider()
+
+    st.subheader("Consumption Data – Sample")
+    cons_sample = list(consumption_collection.find().limit(5))
+    st.json(cons_sample)
+
+    st.subheader("Consumption Columns")
+    if cons_sample:
+        cons_df = pd.DataFrame(cons_sample)
+        st.write(cons_df.columns.tolist())
+        st.dataframe(cons_df)
+
+    st.divider()
+
+    st.write("Record counts:")
+    st.write("Production:", production_collection.count_documents({}))
+    st.write("Consumption:", consumption_collection.count_documents({}))
+
+    # What values does groupName take in consumption data and production data?
+    st.subheader("Distinct groupName values in Consumption Data")
+    cons_groups = consumption_collection.distinct("groupName")
+    st.write(cons_groups)
+
+    st.subheader("Distinct groupName values in Production Data")
+    prod_groups = production_collection.distinct("groupName")
+    st.write(prod_groups)
+
+
+
 # -----------------------------
 # Navigation
 # -----------------------------
@@ -859,6 +1262,10 @@ pg_newA = st.Page(page_newA, title="STL & Spectrogram", icon="🌀")
 pg_data = st.Page(page_data_table, title="Weather Data", icon="📋")
 pg_plots = st.Page(page_plots, title="Weather Plots", icon="📈")
 pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
+pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
 
-nav = st.navigation(pages=[pg_home, pg_energy, pg_newA, pg_data, pg_plots, pg_newB])
+pg_inspect = st.Page(inspect_mongo, title="Inspect MongoDB", icon="🔍")
+
+
+nav = st.navigation(pages=[pg_home, pg_energy, pg_newA, pg_data, pg_plots, pg_newB, pg_map, pg_inspect])
 nav.run()
