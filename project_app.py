@@ -1259,6 +1259,7 @@ def inspect_mongo():
 # Snow Drift Inspection Page
 # -----------------------------
 def inspect_snow_drift():
+    from datetime import datetime
     st.header("Snow Drift Analysis")
 
     # Check map selection
