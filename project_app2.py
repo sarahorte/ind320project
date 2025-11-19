@@ -1172,17 +1172,8 @@ def page_map():
             icon=folium.Icon(color="red")
         ).add_to(m)
 
-        # make the map a bit more zoomed out to see context. What to change to get less zoomed out? 
-        south, west, north, east = m.get_bounds()
-
-        # bring the bounds closer together = zoom in
-        south += 0.7
-        west  += 1.2
-        north -= 0.7
-        east  -= 1.2
-
-        m.fit_bounds([[south, west], [north, east]], padding=(15, 15))
-
+        # make the map a bit more zoomed out to see context
+        m.fit_bounds(m.get_bounds(), padding=(15, 15))
 
 
         # Update map click
