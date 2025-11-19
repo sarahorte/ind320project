@@ -1255,6 +1255,81 @@ def inspect_mongo():
     st.write(prod_groups)
 
 
+# -----------------------------
+# Snow Drift Inspection Page
+# -----------------------------
+def inspect_snow_drift():
+    st.header("Snow Drift Analysis")
+
+    # Check map selection
+    if st.session_state.get("selected_feature_id") is None:
+        st.warning("Please select a location on the map before calculating snow drift.")
+        return
+
+    lat, lon = st.session_state.last_pin
+    st.subheader("Selected Location")
+    st.write(f"Latitude: {lat:.6f}")
+    st.write(f"Longitude: {lon:.6f}")
+
+    # Year range selection
+    start_year, end_year = st.slider(
+        "Select year range",
+        min_value=2000,
+        max_value=datetime.now().year,
+        value=(2020, 2023),
+        step=1
+    )
+
+    T = 3000      # Max transport distance [m]
+    F = 30000     # Fetch distance [m]
+    theta = 0.5   # Relocation coefficient
+
+    # Fetch weather data
+    with st.spinner("Fetching ERA5 weather data..."):
+        df_weather = fetch_weather_for_year_range(lat, lon, start_year, end_year)
+
+    # Yearly snow drift
+    yearly_df = compute_yearly_results(df_weather, T, F, theta)
+    yearly_df_disp = yearly_df.copy()
+    yearly_df_disp["Qt (tonnes/m)"] = yearly_df_disp["Qt (kg/m)"] / 1000
+
+    st.subheader("Yearly Snow Drift")
+    st.dataframe(
+        yearly_df_disp[['season', 'Qt (tonnes/m)', 'Control']].style.format({"Qt (tonnes/m)": "{:.1f}"})
+    )
+
+    st.divider()
+
+    # Monthly snow drift
+    st.subheader("Monthly Snow Drift")
+    df_weather['month'] = df_weather['time'].dt.month
+    monthly_swe = df_weather.groupby(['season', 'month']).apply(
+        lambda g: g.apply(lambda row: row['precipitation'] if row['temperature_2m'] < 1 else 0, axis=1).sum()
+    )
+    monthly_swe = monthly_swe.reset_index().rename(columns={0: 'Swe_mm'})
+    monthly_swe['Qt_kg/m'] = monthly_swe['Swe_mm'] * 0.5 * T  # simplified monthly transport
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for season in yearly_df['season']:
+        monthly = monthly_swe[monthly_swe['season'] == season]
+        ax.plot(monthly['month'], monthly['Qt_kg/m']/1000, marker='o', label=season)
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Snow Drift Qt [tonnes/m]")
+    ax.set_xticks(range(1, 13))
+    ax.set_title("Monthly Snow Drift per Season")
+    ax.legend()
+    st.pyplot(fig)
+
+    st.divider()
+
+    # Wind rose
+    st.subheader("Average Wind Rose")
+    avg_sectors = compute_average_sector(df_weather)
+    overall_avg = yearly_df['Qt (kg/m)'].mean()
+    plot_rose(avg_sectors, overall_avg)
+
+
+
 
 # -----------------------------
 # Navigation
@@ -1268,7 +1343,18 @@ pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
 pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
 
 pg_inspect = st.Page(inspect_mongo, title="Inspect MongoDB", icon="🔍")
+pg_snow = st.Page(inspect_snow_drift, title="Snow Drift", icon="❄️")
 
-
-nav = st.navigation(pages=[pg_home, pg_energy, pg_newA, pg_data, pg_plots, pg_newB, pg_map, pg_inspect])
+nav = st.navigation(pages=[
+    pg_home,
+    pg_energy,
+    pg_newA,
+    pg_data,
+    pg_plots,
+    pg_newB,
+    pg_map,
+    pg_inspect,
+    pg_snow
+])
 nav.run()
+
