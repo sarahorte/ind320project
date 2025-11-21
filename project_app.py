@@ -1302,6 +1302,11 @@ def inspect_snow_drift():
     df_weather.sort_index(inplace=True)
     df_weather.reset_index(inplace=True)
 
+    # print df head and column names for debugging
+    st.subheader("Weather Data Sample")
+    st.write("Column names:", df_weather.columns.tolist())
+    st.dataframe(df_weather.head())
+
     # Convert the 'time' column to datetime.
     df_weather['time'] = pd.to_datetime(df_weather['time'])
     
