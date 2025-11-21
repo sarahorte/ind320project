@@ -1290,7 +1290,7 @@ def inspect_snow_drift():
 
     # Fetch weather data
     # Assume lat, lon are defined, and start_snowyear, end_snowyear come from your slider
-    calendar_years = list(range(start_snowyear, end_snowyear + 2))  # +2 to include last snowyear's next year
+    calendar_years = list(range(start_snowyear, end_snowyear + 1))  # +2 to include last snowyear's next year
 
     dfs = []
     for y in calendar_years:
