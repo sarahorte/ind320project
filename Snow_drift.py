@@ -144,28 +144,30 @@ def compute_yearly_results(df, T, F, theta):
 def compute_monthly_results(df, T, F, theta):
     """
     Compute monthly snow transport (Qt) for every month in the dataset.
-    Snow months are within snow years (July → June), but we aggregate per calendar month.
+    Seasons are July → June.
     
     Returns a DataFrame with columns: ['season', 'month', 'Qt (kg/m)']
     """
-    # Make sure 'time' column is datetime
     df['time'] = pd.to_datetime(df['time'])
-
+    
     # Calculate hourly Swe: precipitation counts when temperature < 1°C
     df['Swe_hourly'] = df.apply(
         lambda row: row['precipitation (mm)'] if row['temperature_2m (°C)'] < 1 else 0, axis=1
     )
-
-    # Add month column (1-12)
-    df['month'] = df['time'].dt.month
-
+    
     monthly_list = []
 
-    # Loop over seasons and months
     for season in sorted(df['season'].unique()):
-        season_df = df[df['season'] == season]
-        for month in range(1, 13):
-            month_df = season_df[season_df['month'] == month]
+        # Season runs from July of 'season' year → June of 'season+1'
+        season_start = pd.Timestamp(year=season, month=7, day=1, tz="Europe/Oslo")
+        season_end = pd.Timestamp(year=season+1, month=6, day=30, hour=23, minute=59, second=59, tz="Europe/Oslo")
+        season_df = df[(df['time'] >= season_start) & (df['time'] <= season_end)]
+        
+        # Loop over months in this season
+        for month_offset in range(12):
+            # Map offset 0–11 to actual month & year
+            month_dt = season_start + pd.DateOffset(months=month_offset)
+            month_df = season_df[season_df['time'].dt.month == month_dt.month]
             if month_df.empty:
                 continue
             total_Swe = month_df['Swe_hourly'].sum()
@@ -173,11 +175,12 @@ def compute_monthly_results(df, T, F, theta):
             result = compute_snow_transport(T, F, theta, total_Swe, wind_speeds)
             monthly_list.append({
                 'season': season,
-                'month': month,
+                'month': month_dt.month,
                 'Qt (kg/m)': result['Qt (kg/m)']
             })
-
+            
     return pd.DataFrame(monthly_list)
+
 
 
 def compute_average_sector(df):
