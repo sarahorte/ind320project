@@ -1332,9 +1332,10 @@ def inspect_snow_drift():
         # prist last entries in df_weather
         st.write(df_weather.tail())
 
-    df_weather["season"] = df_weather["time"].map(
+    df_weather["season"] = df_weather.index.map(
         lambda dt: dt.year if dt.month >= 7 else dt.year - 1
     )
+
 
 
     # Yearly snow drift
