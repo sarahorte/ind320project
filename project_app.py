@@ -1339,8 +1339,11 @@ def inspect_snow_drift():
     # Compute the average directional breakdown (average over all seasons).
     avg_sectors = sd.compute_average_sector(df_weather)
     
-    # Create the rose plot canvas with the average directional breakdown.
-    sd.plot_rose(avg_sectors, overall_avg)
+    # Create the rose plot canvas with the average directional breakdown in streamlit
+    fig = sd.plot_rose(avg_sectors, overall_avg)
+    st.pyplot(fig)
+
+
 
 
 # -----------------------------
