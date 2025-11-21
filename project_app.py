@@ -1258,6 +1258,8 @@ def inspect_mongo():
 # -----------------------------
 # Snow Drift Inspection Page
 # -----------------------------
+import Snow_drift as sd
+
 def inspect_snow_drift():
     from datetime import datetime
     st.header("Snow Drift Analysis")
@@ -1272,11 +1274,11 @@ def inspect_snow_drift():
     st.write(f"Latitude: {lat:.6f}")
     st.write(f"Longitude: {lon:.6f}")
 
-    # Year range selection
+    # Year range selection. Can
     start_snowyear, end_snowyear = st.slider(
         "Select year range",
         min_value=2015,
-        max_value=datetime.now().year,
+        max_value=2023,
         value=(2020, 2023), # default range
         step=1
     )
@@ -1329,7 +1331,7 @@ def inspect_snow_drift():
         st.write(df_weather.head())
 
     # Yearly snow drift
-    yearly_df = compute_yearly_results(df_weather, T, F, theta)
+    yearly_df = sd.compute_yearly_results(df_weather, T, F, theta)
     yearly_df_disp = yearly_df.copy()
     yearly_df_disp["Qt (tonnes/m)"] = yearly_df_disp["Qt (kg/m)"] / 1000
 
@@ -1364,9 +1366,9 @@ def inspect_snow_drift():
 
     # Wind rose
     st.subheader("Average Wind Rose")
-    avg_sectors = compute_average_sector(df_weather)
+    avg_sectors = sd.compute_average_sector(df_weather)
     overall_avg = yearly_df['Qt (kg/m)'].mean()
-    plot_rose(avg_sectors, overall_avg)
+    sd.plot_rose(avg_sectors, overall_avg)
 
 
 
