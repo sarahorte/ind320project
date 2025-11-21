@@ -1331,6 +1331,10 @@ def inspect_snow_drift():
     yearly_df_disp["Qt (tonnes/m)"] = yearly_df_disp["Qt (kg/m)"] / 1000
     st.write("Yearly average snow drift (Qt) per season (in tonnes/m):")
     st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
+
+    # Make a line plot of yearly average Qt over seasons
+    fig_yearly = sd.plot_yearly_qt(yearly_df)
+    st.pyplot(fig_yearly)
     
     overall_avg_tonnes = overall_avg / 1000
     st.write(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
