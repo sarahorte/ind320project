@@ -1343,6 +1343,41 @@ def inspect_snow_drift():
     ax.grid(True)
     st.pyplot(fig)
     
+    import plotly.graph_objects as go
+
+    st.subheader("Yearly Average Snow Drift (Qt) Over Seasons")
+
+    # Prepare data
+    seasons = yearly_df['season'].tolist()
+    Qt_tonnes = (yearly_df['Qt (kg/m)'] / 1000).tolist()  # convert to tonnes/m
+
+    # Create Plotly line plot
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=seasons,
+        y=Qt_tonnes,
+        mode='lines+markers',
+        name='Qt',
+        line=dict(color='royalblue', width=3),
+        marker=dict(size=8, color='orange')
+    ))
+
+    fig.update_layout(
+        title="Yearly Average Snow Drift (Qt) Over Seasons",
+        xaxis_title="Season",
+        yaxis_title="Average Qt (tonnes/m)",
+        xaxis=dict(tickmode='linear'),
+        yaxis=dict(tickformat=".1f"),
+        template="plotly_white",
+        hovermode="x unified"
+    )
+
+    # Display in Streamlit
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
     overall_avg_tonnes = overall_avg / 1000
     st.write(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
     
