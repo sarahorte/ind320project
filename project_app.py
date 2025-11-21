@@ -1275,19 +1275,20 @@ def inspect_snow_drift():
     # Year range selection
     start_year, end_year = st.slider(
         "Select year range",
-        min_value=2000,
+        min_value=2015,
         max_value=datetime.now().year,
-        value=(2020, 2023),
+        value=(2020, 2023), # default range
         step=1
     )
 
+    # Standard default values for snow drift calculation
     T = 3000      # Max transport distance [m]
     F = 30000     # Fetch distance [m]
     theta = 0.5   # Relocation coefficient
 
     # Fetch weather data
     with st.spinner("Fetching ERA5 weather data..."):
-        df_weather = fetch_weather_for_year_range(lat, lon, start_year, end_year)
+        df_weather = fetch_era5_data(lat, lon, start_year, end_year)
 
     # Yearly snow drift
     yearly_df = compute_yearly_results(df_weather, T, F, theta)
