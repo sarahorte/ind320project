@@ -156,18 +156,24 @@ def compute_monthly_results(df, T, F, theta):
     )
     
     monthly_list = []
+    seasons = sorted(df['season'].unique())
 
-    for season in sorted(df['season'].unique()):
-        # Season runs from July of 'season' year → June of 'season+1'
+    for i, season in enumerate(seasons):
         season_start = pd.Timestamp(year=season, month=7, day=1, tz="Europe/Oslo")
         season_end = pd.Timestamp(year=season+1, month=6, day=30, hour=23, minute=59, second=59, tz="Europe/Oslo")
+
+        # Limit to available data
         season_df = df[(df['time'] >= season_start) & (df['time'] <= season_end)]
-        
-        # Loop over months in this season
-        for month_offset in range(12):
-            # Map offset 0–11 to actual month & year
-            month_dt = season_start + pd.DateOffset(months=month_offset)
-            month_df = season_df[season_df['time'].dt.month == month_dt.month]
+        if season_df.empty:
+            continue
+
+        # Determine months in this season (handle first/last seasons)
+        first_month = season_df['time'].dt.month.min()
+        last_month = season_df['time'].dt.month.max()
+
+        # Loop over months that actually exist in this season
+        for month in range(first_month, last_month + 1):
+            month_df = season_df[season_df['time'].dt.month == month]
             if month_df.empty:
                 continue
             total_Swe = month_df['Swe_hourly'].sum()
@@ -175,7 +181,7 @@ def compute_monthly_results(df, T, F, theta):
             result = compute_snow_transport(T, F, theta, total_Swe, wind_speeds)
             monthly_list.append({
                 'season': season,
-                'month': month_dt.month,
+                'month': month,
                 'Qt (kg/m)': result['Qt (kg/m)']
             })
             
