@@ -1307,6 +1307,15 @@ def inspect_snow_drift():
     st.write("Column names:", df_weather.columns.tolist())
     st.dataframe(df_weather.head())
 
+    df_weather.rename(columns={
+        "temperature_2m": "temperature_2m (°C)",
+        "precipitation": "precipitation (mm)",
+        "wind_speed_10m": "wind_speed_10m (m/s)",
+        "wind_gusts_10m": "wind_gusts_10m (m/s)",
+        "wind_direction_10m": "wind_direction_10m (°)"
+    }, inplace=True)
+
+
     # Convert the 'time' column to datetime.
     df_weather['time'] = pd.to_datetime(df_weather['time'])
     
