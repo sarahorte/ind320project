@@ -141,6 +141,45 @@ def compute_yearly_results(df, T, F, theta):
         results_list.append(result)
     return pd.DataFrame(results_list)
 
+def compute_monthly_results(df, T, F, theta):
+    """
+    Compute monthly snow transport (Qt) for every month in the dataset.
+    Snow months are within snow years (July → June), but we aggregate per calendar month.
+    
+    Returns a DataFrame with columns: ['season', 'month', 'Qt (kg/m)']
+    """
+    # Make sure 'time' column is datetime
+    df['time'] = pd.to_datetime(df['time'])
+
+    # Calculate hourly Swe: precipitation counts when temperature < 1°C
+    df['Swe_hourly'] = df.apply(
+        lambda row: row['precipitation (mm)'] if row['temperature_2m (°C)'] < 1 else 0, axis=1
+    )
+
+    # Add month column (1-12)
+    df['month'] = df['time'].dt.month
+
+    monthly_list = []
+
+    # Loop over seasons and months
+    for season in sorted(df['season'].unique()):
+        season_df = df[df['season'] == season]
+        for month in range(1, 13):
+            month_df = season_df[season_df['month'] == month]
+            if month_df.empty:
+                continue
+            total_Swe = month_df['Swe_hourly'].sum()
+            wind_speeds = month_df['wind_speed_10m (m/s)'].tolist()
+            result = compute_snow_transport(T, F, theta, total_Swe, wind_speeds)
+            monthly_list.append({
+                'season': season,
+                'month': month,
+                'Qt (kg/m)': result['Qt (kg/m)']
+            })
+
+    return pd.DataFrame(monthly_list)
+
+
 def compute_average_sector(df):
     """
     Compute the average directional breakdown (sectors) over all seasons.

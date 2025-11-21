@@ -1317,7 +1317,9 @@ def inspect_snow_drift():
     
     # Define season: if month >= 7, season = current year; otherwise, season = previous year.
     df_weather['season'] = df_weather['time'].apply(lambda dt: dt.year if dt.month >= 7 else dt.year - 1)
-    
+    df_weather['month'] = df_weather['time'].dt.month
+
+        
     # Compute seasonal results (yearly averages for each season).
     yearly_df = sd.compute_yearly_results(df_weather, T, F, theta)
     overall_avg = yearly_df['Qt (kg/m)'].mean()
@@ -1368,6 +1370,13 @@ def inspect_snow_drift():
     fig = sd.plot_rose(avg_sectors, overall_avg)
     st.pyplot(fig)
 
+
+    # Compute monthly snow drift
+    monthly_df = sd.compute_monthly_results(df_weather, T, F, theta)
+    st.write("Monthly snow drift (Qt) per month and season (in tonnes/m):")
+    monthly_df_disp = monthly_df.copy()
+    monthly_df_disp["Qt (tonnes/m)"] = monthly_df_disp["Qt (kg/m)"] / 1000
+    st.dataframe(monthly_df_disp[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"))
 
 
 
