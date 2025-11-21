@@ -1301,6 +1301,7 @@ def inspect_snow_drift():
     # Combine all years into one DataFrame
     df_weather = pd.concat(dfs)
     df_weather.sort_index(inplace=True)
+    df_weather.reset_index(inplace=True)
 
     # Convert the 'time' column to datetime.
     df_weather['time'] = pd.to_datetime(df_weather['time'])
