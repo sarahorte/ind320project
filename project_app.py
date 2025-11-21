@@ -1329,6 +1329,13 @@ def inspect_snow_drift():
         df_weather = fetch_era5_range_snowyear(lat, lon, start_snowyear, end_snowyear)
         st.success("Loaded ERA5 data for selected snow years.")
         st.write(df_weather.head())
+        # prist last entries in df_weather
+        st.write(df_weather.tail())
+
+    df_weather["season"] = df_weather["time"].map(
+        lambda dt: dt.year if dt.month >= 7 else dt.year - 1
+    )
+
 
     # Yearly snow drift
     yearly_df = sd.compute_yearly_results(df_weather, T, F, theta)
