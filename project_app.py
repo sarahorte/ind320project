@@ -1371,13 +1371,21 @@ def inspect_snow_drift():
     st.pyplot(fig)
 
 
-    # Compute monthly snow drift
-    monthly_df = sd.compute_monthly_results(df_weather, T, F, theta)
-    st.write("Monthly snow drift (Qt) per month and season (in tonnes/m):")
-    monthly_df_disp = monthly_df.copy()
-    monthly_df_disp["Qt (tonnes/m)"] = monthly_df_disp["Qt (kg/m)"] / 1000
-    st.dataframe(monthly_df_disp[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}")))
+    # -----------------------------
+    # Monthly Snow Drift Calculation
+    # -----------------------------
+    st.subheader("Monthly Snow Drift")
 
+    # Compute monthly results
+    monthly_df = sd.compute_monthly_results(df_weather, T, F, theta)
+
+    # Convert Qt to tonnes/m for readability
+    monthly_df['Qt (tonnes/m)'] = monthly_df['Qt (kg/m)'] / 1000
+
+    # Display monthly snow drift
+    st.dataframe(
+        monthly_df[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"})
+    )
 
 
 # -----------------------------
