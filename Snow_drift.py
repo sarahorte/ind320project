@@ -125,8 +125,8 @@ def compute_yearly_results(df, T, F, theta):
     seasons = sorted(df['season'].unique())
     results_list = []
     for s in seasons:
-        season_start = pd.Timestamp(year=s, month=7, day=1)
-        season_end = pd.Timestamp(year=s+1, month=6, day=30, hour=23, minute=59, second=59)
+        season_start = pd.Timestamp(year=s, month=7, day=1, tz="Europe/Oslo")
+        season_end = pd.Timestamp(year=s+1, month=6, day=30, hour=23, minute=59, second=59, tz="Europe/Oslo")
         df_season = df[(df['time'] >= season_start) & (df['time'] <= season_end)]
         if df_season.empty:
             continue

@@ -1289,7 +1289,6 @@ def inspect_snow_drift():
     theta = 0.5   # Relocation coefficient
 
     # Fetch weather data
-
     # Assume lat, lon are defined, and start_snowyear, end_snowyear come from your slider
     calendar_years = list(range(start_snowyear, end_snowyear + 2))  # +2 to include last snowyear's next year
 
@@ -1325,7 +1324,7 @@ def inspect_snow_drift():
     print(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
     
     # Compute the average directional breakdown (average over all seasons).
-    avg_sectors = sd.compute_average_sector(df)
+    avg_sectors = sd.compute_average_sector(df_weather)
     
     # Create the rose plot canvas with the average directional breakdown.
     sd.plot_rose(avg_sectors, overall_avg)
