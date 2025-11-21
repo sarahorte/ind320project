@@ -1290,47 +1290,17 @@ def inspect_snow_drift():
 
     # Fetch weather data
 
-    @st.cache_data
-    def fetch_era5_range_snowyear(lat, lon, start_snowyear, end_snowyear):
-        """
-        Fetch data for snow years:
-            snowyear Y = July 1 (Y) → June 30 (Y+1)
-        """
+    # Assume lat, lon are defined, and start_snowyear, end_snowyear come from your slider
+    calendar_years = list(range(start_snowyear, end_snowyear + 2))  # +2 to include last snowyear's next year
 
-        # We must fetch the calendar years needed
-        needed_years = list(range(start_snowyear, end_snowyear + 2))
+    dfs = []
+    for y in calendar_years:
+        df_year = fetch_era5_data(lat, lon, y)
+        dfs.append(df_year)
 
-        dfs = []
-        for y in needed_years:
-            df_y = fetch_era5_data(lat, lon, y)  # your existing single-year fetcher
-            dfs.append(df_y)
-
-        # Combine all data
-        df = pd.concat(dfs)
-        df.sort_index(inplace=True)
-
-        # Assign snowyear to each timestamp
-        def assign_snowyear(ts):
-            # If month >= 7 → belongs to same year
-            # Else → belongs to previous year
-            if ts.month >= 7:
-                return ts.year
-            else:
-                return ts.year - 1
-
-        df["snowyear"] = df.index.map(assign_snowyear)
-
-        # Now filter to selected snow-year range
-        df = df[(df["snowyear"] >= start_snowyear) & (df["snowyear"] <= end_snowyear)]
-
-        return df
-
-    if st.button("Load Snow-Year ERA5 Data"):
-        df_weather = fetch_era5_range_snowyear(lat, lon, start_snowyear, end_snowyear)
-        st.success("Loaded ERA5 data for selected snow years.")
-        st.write(df_weather.head())
-        # prist last entries in df_weather
-        st.write(df_weather.tail())
+    # Combine all years into one DataFrame
+    df_weather = pd.concat(dfs)
+    df_weather.sort_index(inplace=True)
 
     # Convert the 'time' column to datetime.
     df_weather['time'] = pd.to_datetime(df_weather['time'])
