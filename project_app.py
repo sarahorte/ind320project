@@ -1297,33 +1297,34 @@ def inspect_snow_drift():
             snowyear Y = July 1 (Y) → June 30 (Y+1)
         """
 
-        # We must fetch the calendar years needed
+        # Years we need to fetch from ERA5 to cover full snow years
+        # If end_snowyear=2023, we must fetch until 2024
         needed_years = list(range(start_snowyear, end_snowyear + 2))
 
         dfs = []
         for y in needed_years:
-            df_y = fetch_era5_data(lat, lon, y)  # your existing single-year fetcher
+            df_y = fetch_era5_data(lat, lon, y)  # your single-year fetcher
             dfs.append(df_y)
 
-        # Combine all data
-        df = pd.concat(dfs)
-        df.sort_index(inplace=True)
+        # Combine all calendar-year data
+        df = pd.concat(dfs, ignore_index=True)
+
+        # Ensure 'time' is a column (not index)
+        if "time" not in df.columns:
+            df.reset_index(inplace=True)
 
         # Assign snowyear to each timestamp
-        def assign_snowyear(ts):
-            # If month >= 7 → belongs to same year
-            # Else → belongs to previous year
-            if ts.month >= 7:
-                return ts.year
-            else:
-                return ts.year - 1
+        df["snowyear"] = df["time"].apply(lambda ts: ts.year if ts.month >= 7 else ts.year - 1)
 
-        df["snowyear"] = df.index.map(assign_snowyear)
-
-        # Now filter to selected snow-year range
+        # Filter to selected snowyear range
         df = df[(df["snowyear"] >= start_snowyear) & (df["snowyear"] <= end_snowyear)]
 
+        # Sort by time
+        df.sort_values("time", inplace=True)
+        df.reset_index(drop=True, inplace=True)
+
         return df
+
 
     if st.button("Load Snow-Year ERA5 Data"):
         df_weather = fetch_era5_range_snowyear(lat, lon, start_snowyear, end_snowyear)
@@ -1332,10 +1333,9 @@ def inspect_snow_drift():
         # prist last entries in df_weather
         st.write(df_weather.tail())
 
-    df_weather["season"] = df_weather.index.map(
+    df_weather["season"] = df_weather["time"].map(
         lambda dt: dt.year if dt.month >= 7 else dt.year - 1
     )
-
 
 
     # Yearly snow drift
