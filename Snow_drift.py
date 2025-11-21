@@ -145,7 +145,7 @@ def compute_monthly_results(df, T, F, theta):
     """
     Compute monthly snow transport (Qt) for every month in the dataset.
     Seasons are July → June.
-    
+
     Returns a DataFrame with columns: ['season', 'month', 'Qt (kg/m)']
     """
     df['time'] = pd.to_datetime(df['time'])
@@ -154,25 +154,40 @@ def compute_monthly_results(df, T, F, theta):
     df['Swe_hourly'] = df.apply(
         lambda row: row['precipitation (mm)'] if row['temperature_2m (°C)'] < 1 else 0, axis=1
     )
-    
+
     monthly_list = []
     seasons = sorted(df['season'].unique())
 
-    for i, season in enumerate(seasons):
+    if not seasons:
+        return pd.DataFrame(columns=['season', 'month', 'Qt (kg/m)'])
+
+    # --- 1. First season: only months July → December ---
+    first_season = seasons[0]
+    season_start = pd.Timestamp(year=first_season, month=7, day=1, tz="Europe/Oslo")
+    season_end = pd.Timestamp(year=first_season, month=12, day=31, hour=23, minute=59, second=59, tz="Europe/Oslo")
+    season_df = df[(df['time'] >= season_start) & (df['time'] <= season_end)]
+    for month in range(7, 13):
+        month_df = season_df[season_df['time'].dt.month == month]
+        if month_df.empty:
+            continue
+        total_Swe = month_df['Swe_hourly'].sum()
+        wind_speeds = month_df['wind_speed_10m (m/s)'].tolist()
+        result = compute_snow_transport(T, F, theta, total_Swe, wind_speeds)
+        monthly_list.append({
+            'season': first_season,
+            'month': month,
+            'Qt (kg/m)': result['Qt (kg/m)']
+        })
+
+    # --- 2. Middle seasons: full July → June ---
+    for season in seasons[1:-1]:
         season_start = pd.Timestamp(year=season, month=7, day=1, tz="Europe/Oslo")
         season_end = pd.Timestamp(year=season+1, month=6, day=30, hour=23, minute=59, second=59, tz="Europe/Oslo")
-
-        # Limit to available data
         season_df = df[(df['time'] >= season_start) & (df['time'] <= season_end)]
         if season_df.empty:
             continue
-
-        # Determine months in this season (handle first/last seasons)
-        first_month = season_df['time'].dt.month.min()
-        last_month = season_df['time'].dt.month.max()
-
-        # Loop over months that actually exist in this season
-        for month in range(first_month, last_month + 1):
+        # July → December of current year
+        for month in range(7, 13):
             month_df = season_df[season_df['time'].dt.month == month]
             if month_df.empty:
                 continue
@@ -184,8 +199,41 @@ def compute_monthly_results(df, T, F, theta):
                 'month': month,
                 'Qt (kg/m)': result['Qt (kg/m)']
             })
-            
+        # January → June of next year
+        for month in range(1, 7):
+            month_df = season_df[season_df['time'].dt.month == month]
+            if month_df.empty:
+                continue
+            total_Swe = month_df['Swe_hourly'].sum()
+            wind_speeds = month_df['wind_speed_10m (m/s)'].tolist()
+            result = compute_snow_transport(T, F, theta, total_Swe, wind_speeds)
+            monthly_list.append({
+                'season': season,
+                'month': month,
+                'Qt (kg/m)': result['Qt (kg/m)']
+            })
+
+    # --- 3. Last season: only months January → June of last season+1 ---
+    if len(seasons) > 1:
+        last_season = seasons[-1]
+        season_start = pd.Timestamp(year=last_season, month=1, day=1, tz="Europe/Oslo")
+        season_end = pd.Timestamp(year=last_season, month=6, day=30, hour=23, minute=59, second=59, tz="Europe/Oslo")
+        season_df = df[(df['time'] >= season_start) & (df['time'] <= season_end)]
+        for month in range(1, 7):
+            month_df = season_df[season_df['time'].dt.month == month]
+            if month_df.empty:
+                continue
+            total_Swe = month_df['Swe_hourly'].sum()
+            wind_speeds = month_df['wind_speed_10m (m/s)'].tolist()
+            result = compute_snow_transport(T, F, theta, total_Swe, wind_speeds)
+            monthly_list.append({
+                'season': last_season,
+                'month': month,
+                'Qt (kg/m)': result['Qt (kg/m)']
+            })
+
     return pd.DataFrame(monthly_list)
+
 
 
 
