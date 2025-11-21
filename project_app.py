@@ -1273,7 +1273,7 @@ def inspect_snow_drift():
     st.write(f"Longitude: {lon:.6f}")
 
     # Year range selection
-    start_year, end_year = st.slider(
+    start_snowyear, end_snowyear = st.slider(
         "Select year range",
         min_value=2015,
         max_value=datetime.now().year,
@@ -1287,8 +1287,46 @@ def inspect_snow_drift():
     theta = 0.5   # Relocation coefficient
 
     # Fetch weather data
-    with st.spinner("Fetching ERA5 weather data..."):
-        df_weather = fetch_era5_data(lat, lon, start_year, end_year)
+
+    @st.cache_data
+    def fetch_era5_range_snowyear(lat, lon, start_snowyear, end_snowyear):
+        """
+        Fetch data for snow years:
+            snowyear Y = July 1 (Y) → June 30 (Y+1)
+        """
+
+        # We must fetch the calendar years needed
+        needed_years = list(range(start_snowyear, end_snowyear + 2))
+
+        dfs = []
+        for y in needed_years:
+            df_y = fetch_era5_data(lat, lon, y)  # your existing single-year fetcher
+            dfs.append(df_y)
+
+        # Combine all data
+        df = pd.concat(dfs)
+        df.sort_index(inplace=True)
+
+        # Assign snowyear to each timestamp
+        def assign_snowyear(ts):
+            # If month >= 7 → belongs to same year
+            # Else → belongs to previous year
+            if ts.month >= 7:
+                return ts.year
+            else:
+                return ts.year - 1
+
+        df["snowyear"] = df.index.map(assign_snowyear)
+
+        # Now filter to selected snow-year range
+        df = df[(df["snowyear"] >= start_snowyear) & (df["snowyear"] <= end_snowyear)]
+
+        return df
+
+    if st.button("Load Snow-Year ERA5 Data"):
+        df_weather = fetch_era5_range_snowyear(lat, lon, start_snowyear, end_snowyear)
+        st.success("Loaded ERA5 data for selected snow years.")
+        st.write(df_weather.head())
 
     # Yearly snow drift
     yearly_df = compute_yearly_results(df_weather, T, F, theta)
