@@ -1332,52 +1332,32 @@ def inspect_snow_drift():
         # prist last entries in df_weather
         st.write(df_weather.tail())
 
-    df_weather["season"] = df_weather["time"].map(
-    lambda dt: dt.year if dt.month >= 7 else dt.year - 1
-)
-
-
-    # Yearly snow drift
+    # Convert the 'time' column to datetime.
+    df_weather['time'] = pd.to_datetime(df_weather['time'])
+    
+    # Define season: if month >= 7, season = current year; otherwise, season = previous year.
+    df_weather['season'] = df_weather['time'].apply(lambda dt: dt.year if dt.month >= 7 else dt.year - 1)
+    
+    # Compute seasonal results (yearly averages for each season).
     yearly_df = sd.compute_yearly_results(df_weather, T, F, theta)
+    overall_avg = yearly_df['Qt (kg/m)'].mean()
+    print("\nYearly average snow drift (Qt) per season:")
+    print(f"Overall average Qt over all seasons: {overall_avg / 1000:.1f} tonnes/m")
+    
     yearly_df_disp = yearly_df.copy()
     yearly_df_disp["Qt (tonnes/m)"] = yearly_df_disp["Qt (kg/m)"] / 1000
-
-    st.subheader("Yearly Snow Drift")
-    st.dataframe(
-        yearly_df_disp[['season', 'Qt (tonnes/m)', 'Control']].style.format({"Qt (tonnes/m)": "{:.1f}"})
-    )
-
-    st.divider()
-
-    # Monthly snow drift
-    st.subheader("Monthly Snow Drift")
-    df_weather['month'] = df_weather['time'].dt.month
-    monthly_swe = df_weather.groupby(['season', 'month']).apply(
-        lambda g: g.apply(lambda row: row['precipitation'] if row['temperature_2m'] < 1 else 0, axis=1).sum()
-    )
-    monthly_swe = monthly_swe.reset_index().rename(columns={0: 'Swe_mm'})
-    monthly_swe['Qt_kg/m'] = monthly_swe['Swe_mm'] * 0.5 * T  # simplified monthly transport
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    for season in yearly_df['season']:
-        monthly = monthly_swe[monthly_swe['season'] == season]
-        ax.plot(monthly['month'], monthly['Qt_kg/m']/1000, marker='o', label=season)
-    ax.set_xlabel("Month")
-    ax.set_ylabel("Snow Drift Qt [tonnes/m]")
-    ax.set_xticks(range(1, 13))
-    ax.set_title("Monthly Snow Drift per Season")
-    ax.legend()
-    st.pyplot(fig)
-
-    st.divider()
-
-    # Wind rose
-    st.subheader("Average Wind Rose")
-    avg_sectors = sd.compute_average_sector(df_weather)
-    overall_avg = yearly_df['Qt (kg/m)'].mean()
+    print("\nYearly average snow drift (Qt) per season (in tonnes/m) and control type:")
+    print(yearly_df_disp[['season', 'Qt (tonnes/m)', 'Control']].to_string(index=False, 
+          formatters={'Qt (tonnes/m)': lambda x: f"{x:.1f}"}))
+    
+    overall_avg_tonnes = overall_avg / 1000
+    print(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
+    
+    # Compute the average directional breakdown (average over all seasons).
+    avg_sectors = sd.compute_average_sector(df)
+    
+    # Create the rose plot canvas with the average directional breakdown.
     sd.plot_rose(avg_sectors, overall_avg)
-
-
 
 
 # -----------------------------
