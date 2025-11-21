@@ -1376,7 +1376,7 @@ def inspect_snow_drift():
     st.write("Monthly snow drift (Qt) per month and season (in tonnes/m):")
     monthly_df_disp = monthly_df.copy()
     monthly_df_disp["Qt (tonnes/m)"] = monthly_df_disp["Qt (kg/m)"] / 1000
-    st.dataframe(monthly_df_disp[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"))
+    st.dataframe(monthly_df_disp[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}")))
 
 
 
