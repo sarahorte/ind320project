@@ -1325,13 +1325,12 @@ def inspect_snow_drift():
     # Compute seasonal results (yearly averages for each season).
     yearly_df = sd.compute_yearly_results(df_weather, T, F, theta)
     overall_avg = yearly_df['Qt (kg/m)'].mean()
-    st.write("Yearly average snow drift (Qt) per season:")
     st.write(f"Overall average Qt over all seasons: {overall_avg / 1000:.1f} tonnes/m")
     
     yearly_df_disp = yearly_df.copy()
     yearly_df_disp["Qt (tonnes/m)"] = yearly_df_disp["Qt (kg/m)"] / 1000
-    st.write("Yearly average snow drift (Qt) per season (in tonnes/m) and control type:")
-    st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)', 'Control']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
+    st.write("Yearly average snow drift (Qt) per season (in tonnes/m):")
+    st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
     
     overall_avg_tonnes = overall_avg / 1000
     st.write(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
