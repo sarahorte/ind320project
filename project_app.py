@@ -1302,10 +1302,6 @@ def inspect_snow_drift():
     df_weather.sort_index(inplace=True)
     df_weather.reset_index(inplace=True)
 
-    # print df head and column names for debugging
-    st.subheader("Weather Data Sample")
-    st.write("Column names:", df_weather.columns.tolist())
-    st.dataframe(df_weather.head())
 
     df_weather.rename(columns={
         "temperature_2m": "temperature_2m (°C)",
@@ -1332,20 +1328,7 @@ def inspect_snow_drift():
     st.write("Yearly average snow drift (Qt) per season (in tonnes/m):")
     st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
 
-    # Make a line plot of yearly average Qt over seasons. Just use streamlit to display matplotlib figure. use values from table above.
-    import matplotlib.pyplot as plt
-    st.subheader("Yearly Average Snow Drift (Qt) Over Seasons")
-    fig, ax = plt.subplots()
-    ax.plot(yearly_df['season'], yearly_df['Qt (kg/m)'] / 1000, marker='o')
-    ax.set_xlabel("Season")
-    ax.set_ylabel("Average Qt (tonnes/m)")
-    ax.set_title("Yearly Average Snow Drift (Qt) Over Seasons")
-    ax.grid(True)
-    st.pyplot(fig)
-    
-    import plotly.graph_objects as go
-
-    st.subheader("Yearly Average Snow Drift (Qt) Over Seasons")
+    # Plot yearly average Qt over seasons using Plotly
 
     # Prepare data
     seasons = yearly_df['season'].tolist()
@@ -1376,10 +1359,7 @@ def inspect_snow_drift():
     # Display in Streamlit
     st.plotly_chart(fig, use_container_width=True)
 
-
-
     overall_avg_tonnes = overall_avg / 1000
-    st.write(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
     
     # Compute the average directional breakdown (average over all seasons).
     avg_sectors = sd.compute_average_sector(df_weather)
