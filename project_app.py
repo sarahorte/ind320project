@@ -1439,22 +1439,51 @@ def inspect_snow_drift():
 
 
 
-    import plotly.express as px
 
-    fig = px.line(
-        plot_df,
-        x="month_dt",
-        y="Qt_tonnes",
-        color="Type",
-        markers=True,
-        title="Monthly vs Seasonal Snow Drift (Qt)"
+    # --- Prepare plotting data ---
+    monthly_plot = monthly_df[["month_dt", "Qt_tonnes"]].copy()
+    monthly_plot["Type"] = "Monthly Qt"
+
+    seasonal_plot = seasonal_df.copy()   # already contains month_dt + Qt_tonnes + Type
+
+
+    # --- Create the figure manually with graph_objects ---
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+
+    # --- 1. Monthly curve (smooth line, no markers) ---
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_plot["month_dt"],
+            y=monthly_plot["Qt_tonnes"],
+            mode="lines",
+            name="Monthly Qt",
+            line=dict(width=2)
+        )
     )
+
+    # --- 2. Seasonal stolpediagram ---
+    fig.add_trace(
+        go.Bar(
+            x=seasonal_plot["month_dt"],
+            y=seasonal_plot["Qt_tonnes"],
+            name="Seasonal Qt",
+            opacity=0.4
+        )
+    )
+
+    # --- Layout ---
     fig.update_layout(
+        title="Monthly vs Seasonal Snow Drift (Qt)",
         xaxis_title="Time",
         yaxis_title="Qt (tonnes/m)",
-        template="plotly_white"
+        template="plotly_white",
+        barmode="overlay"   # bars behind line
     )
+
     st.plotly_chart(fig, use_container_width=True)
+
 
 
 
