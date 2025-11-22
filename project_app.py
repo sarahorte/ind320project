@@ -1386,187 +1386,64 @@ def inspect_snow_drift():
     st.dataframe(
         monthly_df[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"})
     )
-
     # -----------------------------
-    # Monthly + Yearly plotting aligned to monthly timeline
-    # -----------------------------
-    import plotly.graph_objects as go
 
-    # Ensure 'season' is simple (start-year) integer for mapping
-    def season_start_int(s):
-        # accepts int or "YYYY-YYYY" string
-        if isinstance(s, int):
-            return s
-        try:
-            return int(str(s).split("-")[0])
-        except Exception:
-            return int(s)
 
-    # Prepare monthly_df_plot (make a copy so we don't mutate original)
-    monthly_df_plot = monthly_df.copy()
-
-    # Create month_dt for each row: if month >=7 then year = season, else year = season+1
-    def season_month_to_timestamp(row):
-        season_val = row['season']
-        # get season start year as int
-        s_int = season_start_int(season_val)
-        month = int(row['month'])
-        if month >= 7:
-            year = s_int
-        else:
-            year = s_int + 1
-        return pd.Timestamp(year=year, month=month, day=1)
-
-    monthly_df_plot['month_dt'] = monthly_df_plot.apply(season_month_to_timestamp, axis=1)
-    monthly_df_plot['Qt_tonnes'] = monthly_df_plot['Qt (kg/m)'] / 1000.0
-
-    # Prepare a map from season start -> seasonal Qt (kg/m)
-    # Make sure yearly_df has a season column we can parse similarly
-    yearly_df_map = yearly_df.copy()
-    yearly_df_map['season_start'] = yearly_df_map['season'].apply(season_start_int)
-    # Map to tonnes
-    yearly_df_map['Qt_tonnes'] = yearly_df_map['Qt (kg/m)'] / 1000.0
-    season_to_Qt = dict(zip(yearly_df_map['season_start'], yearly_df_map['Qt_tonnes']))
-
-    # Add seasonal Qt repeated for each monthly row
-    def lookup_season_Qt(row):
-        s = row['season']
-        s_int = season_start_int(s)
-        return season_to_Qt.get(s_int, np.nan)
-
-    monthly_df_plot['season_Qt_tonnes'] = monthly_df_plot.apply(lookup_season_Qt, axis=1)
-
-    # Sort by timestamp
-    monthly_df_plot.sort_values('month_dt', inplace=True)
-
-    # Create the Plotly figure: monthly line + seasonal repeated line (same x axis)
-    fig = go.Figure()
-
-    # Monthly Qt (fine-grained)
-    fig.add_trace(go.Scatter(
-        x=monthly_df_plot['month_dt'],
-        y=monthly_df_plot['Qt_tonnes'],
-        mode='lines+markers',
-        name='Monthly Qt (tonnes/m)',
-        line=dict(width=2, dash='dash'),
-        marker=dict(size=6)
-    ))
-
-    # Seasonal Qt repeated (step-like / smooth depending on points)
-    fig.add_trace(go.Scatter(
-        x=monthly_df_plot['month_dt'],
-        y=monthly_df_plot['season_Qt_tonnes'],
-        mode='lines+markers',
-        name='Seasonal Qt repeated (tonnes/m)',
-        line=dict(width=3),
-        marker=dict(size=7)
-    ))
-
-    # Nicen up layout: monthly ticks, rotate labels, unify hover
-    fig.update_layout(
-        title="Monthly and Seasonal Snow Drift (Qt)",
-        xaxis_title="Time (month)",
-        yaxis_title="Qt (tonnes/m)",
-        template="plotly_white",
-        hovermode="x unified",
-        xaxis=dict(
-            tickformat="%Y-%m",
-            tickangle= -45
+    # Create monthly timestamps
+    monthly_df["month_dt"] = monthly_df.apply(
+        lambda row: pd.Timestamp(
+            year=row["season"] if row["month"] >= 7 else row["season"] + 1,
+            month=row["month"],
+            day=1
         ),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        axis=1
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    # Convert to tonnes
+    monthly_df["Qt_tonnes"] = monthly_df["Qt (kg/m)"] / 1000
 
+    # ---- Build matching seasonal timeline ----
 
+    seasonal_expanded = []
 
-    # ------------------------------
+    for _, row in yearly_df.iterrows():
+        season_year = int(row["season"])
+        qt_tonnes = row["Qt (kg/m)"] / 1000
 
+        # the 12 months of the season: Jul→Dec of season year, Jan→Jun of next year
+        months = list(range(7, 13)) + list(range(1, 7))
 
+        for m in months:
+            year = season_year if m >= 7 else season_year + 1
+            dt = pd.Timestamp(year=year, month=m, day=1)
 
-    # Plot monthyly snow drift using Plotly
-    # Prepare data
-    months = monthly_df.apply(lambda row: f"{row['season']}-{row['month']:02d}", axis=1).tolist()
-    Qt_monthly_tonnes = monthly_df['Qt (kg/m)'] / 1000  # convert to tonnes/m   
-    Qt_monthly_tonnes = Qt_monthly_tonnes.tolist()
-    # Create Plotly line plot for monthly data
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=months,
-        y=Qt_monthly_tonnes,
-        mode='lines+markers',
-        name='Monthly Qt',
-        line=dict(color='green', width=2, dash='dash'),
-        marker=dict(size=6, color='red')
-    ))
-    fig.update_layout(
-        title="Monthly Snow Drift (Qt)",
-        xaxis_title="Month",
-        yaxis_title="Qt (tonnes/m)",
-        xaxis=dict(tickmode='linear'),
-        yaxis=dict(tickformat=".1f"),
-        template="plotly_white",
-        hovermode="x unified"
+            seasonal_expanded.append({
+                "month_dt": dt,
+                "Qt_tonnes": qt_tonnes,
+                "Type": "Seasonal Qt"
+            })
+
+    seasonal_df = pd.DataFrame(seasonal_expanded)
+
+    # ---- Prepare monthly series for plotting ----
+    monthly_plot_df = monthly_df[["month_dt", "Qt_tonnes"]].copy()
+    monthly_plot_df["Type"] = "Monthly Qt"
+
+    # ---- Combine ----
+    plot_df = pd.concat([seasonal_df, monthly_plot_df])
+
+    import plotly.express as px
+
+    fig = px.line(
+        plot_df.sort_values("month_dt"),
+        x="month_dt",
+        y="Qt_tonnes",
+        color="Type",
+        markers=True,
+        title="Monthly & Seasonal Snow Drift (Qt)"
     )
-    # Display in Streamlit
-    st.plotly_chart(fig, use_container_width=True)
-
-
-
-
-
-    # -----------------------------
-    # Monthly + Yearly Plot
-    # -----------------------------
-    st.subheader("Monthly + Yearly Snow Drift Visualization")
-
-    # ---- Prepare yearly data ----
-    yearly_df_plot = yearly_df.copy()
-    yearly_df_plot["Qt_tonnes"] = yearly_df_plot["Qt (kg/m)"] / 1000
-
-    # Convert each season to a datetime at the middle of the season (Jan 1 of next year)
-    def season_to_middate(season):
-        return pd.Timestamp(year=season + 1, month=1, day=1)
-
-    yearly_df_plot["date"] = yearly_df_plot["season"].apply(season_to_middate)
-
-    # ---- Prepare monthly data ----
-    monthly_df_plot = monthly_df.copy()
-
-    def season_month_to_timestamp(row):
-        season = int(row["season"])
-        month = int(row["month"])
-        year = season if month >= 7 else season + 1
-        return pd.Timestamp(year=year, month=month, day=1)
-
-    monthly_df_plot["date"] = monthly_df_plot.apply(season_month_to_timestamp, axis=1)
-    monthly_df_plot["Qt_tonnes"] = monthly_df_plot["Qt (kg/m)"] / 1000
-
-    # ---- Create final figure ----
-    fig = go.Figure()
-
-    # YEARLY line
-    fig.add_trace(go.Scatter(
-        x=yearly_df_plot["date"],
-        y=yearly_df_plot["Qt_tonnes"],
-        mode="lines+markers",
-        name="Yearly Qt",
-        line=dict(width=4),
-        marker=dict(size=10)
-    ))
-
-    # MONTHLY line
-    fig.add_trace(go.Scatter(
-        x=monthly_df_plot["date"],
-        y=monthly_df_plot["Qt_tonnes"],
-        mode="lines+markers",
-        name="Monthly Qt",
-        line=dict(width=2, dash="dash"),
-        marker=dict(size=6)
-    ))
 
     fig.update_layout(
-        title="Monthly and Yearly Snow Drift (Qt)",
         xaxis_title="Time",
         yaxis_title="Qt (tonnes/m)",
         template="plotly_white",
@@ -1575,108 +1452,7 @@ def inspect_snow_drift():
 
     st.plotly_chart(fig, use_container_width=True)
 
-
-
-
-# -----------------------------
-
-
-
-
-    def month_to_timestamp(row):
-        season = row["season"]
-        month = row["month"]
-        if month >= 7:
-            year = season          # July–Dec
-        else:
-            year = season + 1      # Jan–Jun of the NEXT year
-        return pd.Timestamp(year=year, month=month, day=1)
-
-
-
-    # Plot monthly and yearly snow drift together using Plotly
-
-    st.subheader("Monthly + Yearly Snow Drift Visualization")
-
-
-    # --------------------------------------------------
-    # Prepare yearly data (align with datetime axis)
-    # --------------------------------------------------
-    yearly_df_plot = yearly_df.copy()
-    yearly_df_plot['Qt_tonnes'] = yearly_df_plot['Qt (kg/m)'] / 1000
-
-    def season_to_timestamp(season):
-        # Season "2020" means July 2020 – June 2021
-        # So use Jan 1, 2021 as representative timestamp
-        return pd.Timestamp(year=season+1, month=1, day=1)
-
-    yearly_df_plot['season_dt'] = yearly_df_plot['season'].apply(season_to_timestamp)
-
-
-    # --------------------------------------------------
-    # Prepare monthly data
-    # --------------------------------------------------
-
-    # Create a proper time axis for each month (first day of month)
-    monthly_df_plot = monthly_df.copy()
-    def season_month_to_timestamp(row):
-        season = int(row['season'])
-        month = int(row['month'])
-
-        # July–Dec belong to the season year
-        if month >= 7:
-            year = season
-        else:
-            year = season + 1  # Jan–Jun belong to the next year
-
-        return pd.Timestamp(year=year, month=month, day=1)
-
-    monthly_df_plot['month_dt'] = monthly_df_plot.apply(season_month_to_timestamp, axis=1)
-
-
-
-    monthly_df_plot['Qt_tonnes'] = monthly_df_plot['Qt (kg/m)'] / 1000
-
-    # --------------------------------------------------
-    # Create joint Plotly figure
-    # --------------------------------------------------
-    fig = go.Figure()
-
-    # ---- Yearly Qt line ----
-    fig.add_trace(go.Scatter(
-        x=yearly_df_plot['season_dt'],
-        y=yearly_df_plot['Qt_tonnes'],
-        mode='lines+markers',
-        name='Yearly Qt',
-        line=dict(width=4),
-        marker=dict(size=10)
-    ))
-
-
-    # ---- Monthly Qt line ----
-    fig.add_trace(go.Scatter(
-        x=monthly_df_plot['month_dt'],
-        y=monthly_df_plot['Qt_tonnes'],
-        mode='lines+markers',
-        name='Monthly Qt',
-        line=dict(width=2, dash='dash'),
-        marker=dict(size=6)
-    ))
-
-    # --------------------------------------------------
-    # Layout
-    # --------------------------------------------------
-    fig.update_layout(
-        title="Monthly and Yearly Snow Drift (Qt)",
-        xaxis_title="Time",
-        yaxis_title="Qt (tonnes/m)",
-        template="plotly_white",
-        hovermode="x unified",
-    )
-
-    # Display
-    st.plotly_chart(fig, use_container_width=True)
-
+    
 
 
 
