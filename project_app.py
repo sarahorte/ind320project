@@ -1327,6 +1327,8 @@ def inspect_snow_drift():
     #OBS Show df_weather['season'] for debugging. the whole thing
     st.write(df_weather[['time', 'season']])
 
+    # Riktig fram til hit.
+
 
 
         
@@ -1339,6 +1341,15 @@ def inspect_snow_drift():
     yearly_df_disp["Qt (tonnes/m)"] = yearly_df_disp["Qt (kg/m)"] / 1000
     st.write("Yearly average snow drift (Qt) per season (in tonnes/m):")
     st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
+
+    overall_avg_tonnes = overall_avg / 1000
+    print(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
+    
+    # Compute the average directional breakdown (average over all seasons).
+    avg_sectors = sd.compute_average_sector(df_weather, T, F, theta)
+    
+    # Create the rose plot canvas with the average directional breakdown.
+    sd.plot_rose(avg_sectors, overall_avg_tonnes)
 
 
 
