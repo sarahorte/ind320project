@@ -1417,6 +1417,25 @@ def inspect_snow_drift():
     st.write("Unique Types:", plot_df["Type"].unique())
 
 
+    import plotly.express as px
+
+    fig = px.line(
+        plot_df,
+        x="month_dt",
+        y="Qt_tonnes",
+        color="Type",
+        markers=True,
+        title="Monthly vs Seasonal Snow Drift (Qt)"
+    )
+    fig.update_layout(
+        xaxis_title="Time",
+        yaxis_title="Qt (tonnes/m)",
+        template="plotly_white"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
 
 
 
