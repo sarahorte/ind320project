@@ -1343,13 +1343,14 @@ def inspect_snow_drift():
     st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
 
     overall_avg_tonnes = overall_avg / 1000
-    print(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
+    st.write(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
     
     # Compute the average directional breakdown (average over all seasons).
-    avg_sectors = sd.compute_average_sector(df_weather, T, F, theta)
+    avg_sectors = sd.compute_average_sector(df_weather)
     
-    # Create the rose plot canvas with the average directional breakdown.
-    sd.plot_rose(avg_sectors, overall_avg, title="Rose plot")
+    # Create the rose plot canvas with the average directional breakdown in streamlit
+    fig = sd.plot_rose(avg_sectors, overall_avg)
+    st.pyplot(fig)
 
 
 
