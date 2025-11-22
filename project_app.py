@@ -1388,6 +1388,74 @@ def inspect_snow_drift():
     )
 
 
+
+
+        # -----------------------------
+    # Plot Seasonal + Monthly Snow Drift
+    # -----------------------------
+    st.subheader("Seasonal and Monthly Snow Drift")
+
+    # Convert season string "2020-2021" → 2020 for plotting
+    yearly_df_plot = yearly_df.copy()
+    yearly_df_plot["season_start"] = yearly_df_plot["season"].apply(lambda s: int(s.split("-")[0]))
+
+    # Create Plotly figure
+    fig2 = go.Figure()
+
+    # ---- SEASONAL Qt ----
+    fig2.add_trace(go.Scatter(
+        x=yearly_df_plot["season_start"],
+        y=yearly_df_plot["Qt (kg/m)"] / 1000,
+        mode="lines+markers",
+        name="Seasonal Qt",
+        line=dict(width=4),
+        marker=dict(size=10),
+    ))
+
+    # ---- MONTHLY Qt ----
+    # Convert month 1–12 into snow-season order: Jul(7)→Jun(6)
+    month_order = [7,8,9,10,11,12,1,2,3,4,5,6]
+
+    monthly_df_plot = monthly_df.copy()
+    monthly_df_plot["month_index"] = monthly_df_plot["month"].apply(lambda m: month_order.index(m))
+
+    # Combine season and month index to create a proper increasing x-value
+    monthly_df_plot["x"] = monthly_df_plot["season"] * 100 + monthly_df_plot["month_index"]
+
+    fig2.add_trace(go.Scatter(
+        x=monthly_df_plot["x"],
+        y=monthly_df_plot["Qt (kg/m)"] / 1000,
+        mode="lines+markers",
+        name="Monthly Qt",
+        line=dict(dash="dot", width=2),
+        marker=dict(size=6),
+        opacity=0.7
+    ))
+
+    # Format x-axis: Show readable labels like "2020 Jul", "2020 Aug", …
+    monthly_df_plot["label"] = monthly_df_plot.apply(
+        lambda row: f"{row['season']} {['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun'][month_order.index(row['month'])]}",
+        axis=1
+    )
+
+    fig2.update_layout(
+        title="Seasonal and Monthly Snow Drift (Qt)",
+        xaxis_title="Season / Month",
+        yaxis_title="Qt (tonnes/m)",
+        template="plotly_white",
+        xaxis=dict(
+            tickmode="array",
+            tickvals=monthly_df_plot["x"],
+            ticktext=monthly_df_plot["label"],
+            tickangle=45
+        ),
+        hovermode="x unified"
+    )
+
+    st.plotly_chart(fig2, use_container_width=True)
+
+
+
     # Plot monthly snow drift toghether with seasonal snow drift with plotly
     fig = go.Figure()
 
