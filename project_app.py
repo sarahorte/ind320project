@@ -1374,6 +1374,30 @@ def inspect_snow_drift():
 
 
 
+    # -----------------------------
+    # 2. Expand seasonal Qt to match months
+    # -----------------------------
+    seasonal_expanded = []
+
+    for _, row in yearly_df.iterrows():
+        season_year = int(row["season"])  # starting year of season
+        qt_tonnes = row["Qt (kg/m)"] / 1000
+
+        # Jul→Dec of season_year, Jan→Jun of season_year+1
+        months = list(range(7, 13)) + list(range(1, 7))
+        for m in months:
+            year = season_year if m >= 7 else season_year + 1
+            dt = pd.Timestamp(year=year, month=m, day=1)
+            seasonal_expanded.append({
+                "month_dt": dt,
+                "Qt_tonnes": qt_tonnes,
+                "Type": "Seasonal Qt"
+            })
+
+    seasonal_df = pd.DataFrame(seasonal_expanded)
+
+
+
     st.subheader("DEBUG: Monthly DF")
     st.write(monthly_df.head(20))
     st.write(monthly_df.tail(20))
