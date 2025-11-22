@@ -1388,6 +1388,41 @@ def inspect_snow_drift():
     )
 
 
+    # Plot monthly snow drift toghether with seasonal snow drift with plotly
+    fig = go.Figure()
+
+    # Monthly Qt
+    fig.add_trace(go.Bar(
+        x=[f"{row['season']}-{row['month']:02d}" for _, row in monthly_df.iterrows()],
+        y=monthly_df['Qt (tonnes/m)'],
+        name='Monthly Qt',
+        marker_color='lightblue'
+    ))
+
+    # Seasonal Qt
+    fig.add_trace(go.Scatter(
+        x=[str(season) for season in yearly_df['season']],
+        y=yearly_df['Qt (kg/m)'] / 1000,  # convert to tonnes/m
+        mode='lines+markers',
+        name='Seasonal Qt',
+        line=dict(color='darkblue', width=3),
+        marker=dict(size=8, color='orange')
+    ))
+
+    fig.update_layout(
+        title="Monthly and Seasonal Snow Drift (Qt)",
+        xaxis_title="Time",
+        yaxis_title="Qt (tonnes/m)",
+        barmode='group',
+        template="plotly_white",
+        hovermode="x unified"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+
 # -----------------------------
 # Navigation
 # -----------------------------
