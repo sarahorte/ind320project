@@ -1432,6 +1432,27 @@ def inspect_snow_drift():
     # ---- Combine ----
     plot_df = pd.concat([seasonal_df, monthly_plot_df])
 
+    st.subheader("DEBUG: Monthly DF")
+    st.write(monthly_df.head(20))
+    st.write(monthly_df.tail(20))
+    st.write("Monthly date range:", monthly_df["month_dt"].min(), " → ", monthly_df["month_dt"].max())
+
+    st.subheader("DEBUG: Seasonal Expanded DF")
+    st.write(seasonal_df.head(20))
+    st.write(seasonal_df.tail(20))
+    st.write("Seasonal date range:", seasonal_df["month_dt"].min(), " → ", seasonal_df["month_dt"].max())
+
+    st.subheader("DEBUG: Combined Plot DF")
+    st.write(plot_df.sort_values("month_dt").head(30))
+    st.write(plot_df.sort_values("month_dt").tail(30))
+
+    st.write("Unique Types:", plot_df["Type"].unique())
+    st.write("Date range:", plot_df["month_dt"].min(), " → ", plot_df["month_dt"].max())
+
+
+
+
+
     import plotly.express as px
 
     fig = px.line(
