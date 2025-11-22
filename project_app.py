@@ -1387,6 +1387,102 @@ def inspect_snow_drift():
         monthly_df[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"})
     )
 
+    # -----------------------------
+    # Monthly + Yearly plotting aligned to monthly timeline
+    # -----------------------------
+    import plotly.graph_objects as go
+
+    # Ensure 'season' is simple (start-year) integer for mapping
+    def season_start_int(s):
+        # accepts int or "YYYY-YYYY" string
+        if isinstance(s, int):
+            return s
+        try:
+            return int(str(s).split("-")[0])
+        except Exception:
+            return int(s)
+
+    # Prepare monthly_df_plot (make a copy so we don't mutate original)
+    monthly_df_plot = monthly_df.copy()
+
+    # Create month_dt for each row: if month >=7 then year = season, else year = season+1
+    def season_month_to_timestamp(row):
+        season_val = row['season']
+        # get season start year as int
+        s_int = season_start_int(season_val)
+        month = int(row['month'])
+        if month >= 7:
+            year = s_int
+        else:
+            year = s_int + 1
+        return pd.Timestamp(year=year, month=month, day=1)
+
+    monthly_df_plot['month_dt'] = monthly_df_plot.apply(season_month_to_timestamp, axis=1)
+    monthly_df_plot['Qt_tonnes'] = monthly_df_plot['Qt (kg/m)'] / 1000.0
+
+    # Prepare a map from season start -> seasonal Qt (kg/m)
+    # Make sure yearly_df has a season column we can parse similarly
+    yearly_df_map = yearly_df.copy()
+    yearly_df_map['season_start'] = yearly_df_map['season'].apply(season_start_int)
+    # Map to tonnes
+    yearly_df_map['Qt_tonnes'] = yearly_df_map['Qt (kg/m)'] / 1000.0
+    season_to_Qt = dict(zip(yearly_df_map['season_start'], yearly_df_map['Qt_tonnes']))
+
+    # Add seasonal Qt repeated for each monthly row
+    def lookup_season_Qt(row):
+        s = row['season']
+        s_int = season_start_int(s)
+        return season_to_Qt.get(s_int, np.nan)
+
+    monthly_df_plot['season_Qt_tonnes'] = monthly_df_plot.apply(lookup_season_Qt, axis=1)
+
+    # Sort by timestamp
+    monthly_df_plot.sort_values('month_dt', inplace=True)
+
+    # Create the Plotly figure: monthly line + seasonal repeated line (same x axis)
+    fig = go.Figure()
+
+    # Monthly Qt (fine-grained)
+    fig.add_trace(go.Scatter(
+        x=monthly_df_plot['month_dt'],
+        y=monthly_df_plot['Qt_tonnes'],
+        mode='lines+markers',
+        name='Monthly Qt (tonnes/m)',
+        line=dict(width=2, dash='dash'),
+        marker=dict(size=6)
+    ))
+
+    # Seasonal Qt repeated (step-like / smooth depending on points)
+    fig.add_trace(go.Scatter(
+        x=monthly_df_plot['month_dt'],
+        y=monthly_df_plot['season_Qt_tonnes'],
+        mode='lines+markers',
+        name='Seasonal Qt repeated (tonnes/m)',
+        line=dict(width=3),
+        marker=dict(size=7)
+    ))
+
+    # Nicen up layout: monthly ticks, rotate labels, unify hover
+    fig.update_layout(
+        title="Monthly and Seasonal Snow Drift (Qt)",
+        xaxis_title="Time (month)",
+        yaxis_title="Qt (tonnes/m)",
+        template="plotly_white",
+        hovermode="x unified",
+        xaxis=dict(
+            tickformat="%Y-%m",
+            tickangle= -45
+        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+    # ------------------------------
+
+
 
     # Plot monthyly snow drift using Plotly
     # Prepare data
@@ -1414,7 +1510,7 @@ def inspect_snow_drift():
     )
     # Display in Streamlit
     st.plotly_chart(fig, use_container_width=True)
-        
+
 
 
 
