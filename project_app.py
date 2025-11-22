@@ -1453,27 +1453,6 @@ def inspect_snow_drift():
 
 
 
-    import plotly.express as px
-
-    fig = px.line(
-        plot_df.sort_values("month_dt"),
-        x="month_dt",
-        y="Qt_tonnes",
-        color="Type",
-        markers=True,
-        title="Monthly & Seasonal Snow Drift (Qt)"
-    )
-
-    fig.update_layout(
-        xaxis_title="Time",
-        yaxis_title="Qt (tonnes/m)",
-        template="plotly_white",
-        hovermode="x unified"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    
 
 
 
