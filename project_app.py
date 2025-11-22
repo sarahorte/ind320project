@@ -1345,12 +1345,6 @@ def inspect_snow_drift():
     # Convert Qt to tonnes/m for readability
     monthly_df['Qt (tonnes/m)'] = monthly_df['Qt (kg/m)'] / 1000
 
-    # Display monthly snow drift
-    st.dataframe(
-        monthly_df[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"})
-    )
-    # -----------------------------
-
 
 
     # -----------------------------
@@ -1486,53 +1480,50 @@ def inspect_snow_drift():
 
 
 
-    import plotly.graph_objects as go
+
+
     import plotly.express as px
 
-    # --- Split the two datasets ---
-    monthly_only = plot_df[plot_df["Type"] == "Monthly Qt"]
-    seasonal_only = plot_df[plot_df["Type"] == "Seasonal Qt"]
+    # --- Add Month-Year labels ---
+    plot_df["month_label"] = plot_df["month_dt"].dt.strftime("%b %Y")
+    seasonal_df["month_label"] = seasonal_df["month_dt"].dt.strftime("%b %Y")
+    monthly_df["month_label"] = monthly_df["month_dt"].dt.strftime("%b %Y")
 
-    # --- Create figure ---
-    fig = go.Figure()
-
-    # 1️⃣ Seasonal – bar chart with NO spacing
-    fig.add_trace(
-        go.Bar(
-            x=seasonal_only["month_dt"],
-            y=seasonal_only["Qt_tonnes"],
-            name="Seasonal Qt",
-            marker=dict(opacity=0.55),
-        )
+    # --- Seasonal bar chart (no spacing) ---
+    fig = px.bar(
+        seasonal_df,
+        x="month_label",
+        y="Qt_tonnes",
+        color="Type",
+        barmode="group",
     )
 
     # Remove spacing between bars
-    fig.update_layout(bargap=0, bargroupgap=0)
-
-    # 2️⃣ Monthly – smooth line
-    fig.add_trace(
-        go.Scatter(
-            x=monthly_only["month_dt"],
-            y=monthly_only["Qt_tonnes"],
-            mode="lines",
-            name="Monthly Qt",
-            line=dict(width=2),   # smooth line
-        )
+    fig.update_layout(
+        bargap=0,      # gap between bars in a group
+        bargroupgap=0, # gap between groups
     )
 
-    # --- Layout ---
+    # --- Add monthly Qt as a line ---
+    fig.add_scatter(
+        x=monthly_df["month_label"],
+        y=monthly_df["Qt_tonnes"],
+        mode="lines",
+        name="Monthly Qt",
+        line=dict(width=3)
+    )
+
+    # --- Styling ---
     fig.update_layout(
         title="Monthly vs Seasonal Snow Drift (Qt)",
-        xaxis_title="Time",
+        xaxis_title="Month",
         yaxis_title="Qt (tonnes/m)",
         template="plotly_white",
+        legend_title_text="Qt Type",
+        xaxis_tickangle=45
     )
 
-    # Show in Streamlit
     st.plotly_chart(fig, use_container_width=True)
-
-
-
 
 
 
