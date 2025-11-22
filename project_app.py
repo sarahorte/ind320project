@@ -1486,6 +1486,54 @@ def inspect_snow_drift():
 
 
 
+    import plotly.graph_objects as go
+    import plotly.express as px
+
+    # --- Split the two datasets ---
+    monthly_only = plot_df[plot_df["Type"] == "Monthly Qt"]
+    seasonal_only = plot_df[plot_df["Type"] == "Seasonal Qt"]
+
+    # --- Create figure ---
+    fig = go.Figure()
+
+    # 1️⃣ Seasonal – bar chart with NO spacing
+    fig.add_trace(
+        go.Bar(
+            x=seasonal_only["month_dt"],
+            y=seasonal_only["Qt_tonnes"],
+            name="Seasonal Qt",
+            marker=dict(opacity=0.55),
+        )
+    )
+
+    # Remove spacing between bars
+    fig.update_layout(bargap=0, bargroupgap=0)
+
+    # 2️⃣ Monthly – smooth line
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_only["month_dt"],
+            y=monthly_only["Qt_tonnes"],
+            mode="lines",
+            name="Monthly Qt",
+            line=dict(width=2),   # smooth line
+        )
+    )
+
+    # --- Layout ---
+    fig.update_layout(
+        title="Monthly vs Seasonal Snow Drift (Qt)",
+        xaxis_title="Time",
+        yaxis_title="Qt (tonnes/m)",
+        template="plotly_white",
+    )
+
+    # Show in Streamlit
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+
 
 
 # -----------------------------
