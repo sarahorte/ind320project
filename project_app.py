@@ -1330,45 +1330,6 @@ def inspect_snow_drift():
     st.write("Yearly average snow drift (Qt) per season (in tonnes/m):")
     st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
 
-    # Plot yearly average Qt over seasons using Plotly
-
-    # Prepare data
-    seasons = yearly_df['season'].tolist()
-    Qt_tonnes = (yearly_df['Qt (kg/m)'] / 1000).tolist()  # convert to tonnes/m
-
-    # Create Plotly line plot
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        x=seasons,
-        y=Qt_tonnes,
-        mode='lines+markers',
-        name='Qt',
-        line=dict(color='royalblue', width=3),
-        marker=dict(size=8, color='orange')
-    ))
-
-    fig.update_layout(
-        title="Yearly Average Snow Drift (Qt) Over Seasons",
-        xaxis_title="Season",
-        yaxis_title="Average Qt (tonnes/m)",
-        xaxis=dict(tickmode='linear'),
-        yaxis=dict(tickformat=".1f"),
-        template="plotly_white",
-        hovermode="x unified"
-    )
-
-    # Display in Streamlit
-    st.plotly_chart(fig, use_container_width=True)
-
-    overall_avg_tonnes = overall_avg / 1000
-    
-    # Compute the average directional breakdown (average over all seasons).
-    avg_sectors = sd.compute_average_sector(df_weather)
-    
-    # Create the rose plot canvas with the average directional breakdown in streamlit
-    fig = sd.plot_rose(avg_sectors, overall_avg)
-    st.pyplot(fig)
 
 
     # -----------------------------
