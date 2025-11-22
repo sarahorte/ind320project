@@ -1527,6 +1527,69 @@ def inspect_snow_drift():
 
 
 
+
+
+    # --- Formatting month label for nicer x-axis ---
+    plot_df["month_label"] = plot_df["month_dt"].dt.strftime("%Y-%m")
+
+    # --- Separate monthly + seasonal for custom styling ---
+    monthly_plot = plot_df[plot_df["Type"] == "Monthly Qt"]
+    seasonal_plot = plot_df[plot_df["Type"] == "Seasonal Qt"]
+
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+
+    # -----------------------------------------
+    # 1. Seasonal bars (light blue, transparent, no gaps)
+    # -----------------------------------------
+    fig.add_trace(go.Bar(
+        x=seasonal_plot["month_label"],
+        y=seasonal_plot["Qt_tonnes"],
+        name="Seasonal Qt",
+        marker=dict(
+            color="rgba(135, 206, 250, 0.35)"  # light blue, semi-transparent
+        ),
+        width=1.0,          # fully remove spacing
+        offset=0,           # no gap
+    ))
+
+    # -----------------------------------------
+    # 2. Monthly bars (darker blue)
+    # -----------------------------------------
+    fig.add_trace(go.Bar(
+        x=monthly_plot["month_label"],
+        y=monthly_plot["Qt_tonnes"],
+        name="Monthly Qt",
+        marker=dict(
+            color="rgba(30, 90, 200, 0.9)"  # dark blue
+        ),
+        width=1.0,          # fully remove spacing
+        offset=0,
+    ))
+
+    # -----------------------------------------
+    # Layout tweaks
+    # -----------------------------------------
+    fig.update_layout(
+        barmode="overlay",          # stack seasonal behind monthly
+        bargap=0.0,                 # remove *all* gaps between bars
+        bargroupgap=0.0,            # remove group gaps
+        title="Monthly vs Seasonal Snow Drift (Qt)",
+        xaxis_title="Month",
+        yaxis_title="Qt (tonnes/m)",
+        template="plotly_white",
+    )
+
+    # Fix x-axis tick labels for readability
+    fig.update_xaxes(tickangle=45)
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+
+
 # -----------------------------
 # Navigation
 # -----------------------------
