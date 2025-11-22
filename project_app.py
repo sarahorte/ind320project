@@ -1397,15 +1397,16 @@ def inspect_snow_drift():
 
 
 
-    # Create monthly timestamps
+    # Create monthly timestamps (safe version)
     monthly_df["month_dt"] = monthly_df.apply(
         lambda row: pd.Timestamp(
-            year=row["season"] if row["month"] >= 7 else row["season"] + 1,
-            month=row["month"],
+            year=int(row["season"]) if row["month"] >= 7 else int(row["season"]) + 1,
+            month=int(row["month"]),
             day=1
         ),
         axis=1
     )
+
 
     # Convert to tonnes
     monthly_df["Qt_tonnes"] = monthly_df["Qt (kg/m)"] / 1000
