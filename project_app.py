@@ -1391,6 +1391,10 @@ def inspect_snow_drift():
     st.write(monthly_df.dtypes)
     st.write(monthly_df.head())
 
+    st.write("Unique months in monthly_df:", monthly_df["month"].unique())
+    st.write("Any NaN in month?", monthly_df["month"].isna().sum())
+
+
 
 
     # Create monthly timestamps
