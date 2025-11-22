@@ -1358,7 +1358,9 @@ def inspect_snow_drift():
 
 
 
-    # Create monthly timestamps (safe version)
+    # -----------------------------
+    # 1. Ensure monthly timestamps
+    # -----------------------------
     monthly_df["month_dt"] = monthly_df.apply(
         lambda row: pd.Timestamp(
             year=int(row["season"]) if row["month"] >= 7 else int(row["season"]) + 1,
@@ -1367,41 +1369,10 @@ def inspect_snow_drift():
         ),
         axis=1
     )
-
-
-    # Convert to tonnes
     monthly_df["Qt_tonnes"] = monthly_df["Qt (kg/m)"] / 1000
-
-    # ---- Build matching seasonal timeline ----
-
-    seasonal_expanded = []
-
-    for _, row in yearly_df.iterrows():
-        # Use integer season from df_weather
-        season_year = int(row["season"])  # safe because df_weather['season'] is int
-        qt_tonnes = row["Qt (kg/m)"] / 1000
-
-        # Jul→Dec of season year, Jan→Jun of next year
-        months = list(range(7, 13)) + list(range(1, 7))
-
-        for m in months:
-            year = season_year if m >= 7 else season_year + 1
-            dt = pd.Timestamp(year=year, month=m, day=1)
-            seasonal_expanded.append({
-                "month_dt": dt,
-                "Qt_tonnes": qt_tonnes,
-                "Type": "Seasonal Qt"
-            })
-
-    seasonal_df = pd.DataFrame(seasonal_expanded)
+    monthly_df["Type"] = "Monthly Qt"
 
 
-    # ---- Prepare monthly series for plotting ----
-    monthly_plot_df = monthly_df[["month_dt", "Qt_tonnes"]].copy()
-    monthly_plot_df["Type"] = "Monthly Qt"
-
-    # ---- Combine ----
-    plot_df = pd.concat([seasonal_df, monthly_plot_df])
 
     st.subheader("DEBUG: Monthly DF")
     st.write(monthly_df.head(20))
