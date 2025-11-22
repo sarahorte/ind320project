@@ -1359,7 +1359,6 @@ def inspect_snow_drift():
 
 
 
-
     # -----------------------------
     # 1. Ensure monthly timestamps
     # -----------------------------
@@ -1373,7 +1372,6 @@ def inspect_snow_drift():
     )
     monthly_df["Qt_tonnes"] = monthly_df["Qt (kg/m)"] / 1000
     monthly_df["Type"] = "Monthly Qt"
-
 
 
     # -----------------------------
@@ -1409,15 +1407,6 @@ def inspect_snow_drift():
     plot_df.sort_values("month_dt", inplace=True)
     plot_df.reset_index(drop=True, inplace=True)
 
-    # -----------------------------
-    # 4. Inspect
-    # -----------------------------
-    st.subheader("DEBUG: Combined Plot DF")
-    st.write(plot_df.head(24))
-    st.write(plot_df.tail(24))
-    st.write("Date range:", plot_df["month_dt"].min(), "→", plot_df["month_dt"].max())
-    st.write("Unique Types:", plot_df["Type"].unique())
-
 
     import plotly.express as px
 
@@ -1435,32 +1424,6 @@ def inspect_snow_drift():
         template="plotly_white"
     )
     st.plotly_chart(fig, use_container_width=True)
-
-
-
-
-
-
-    st.subheader("DEBUG: Monthly DF")
-    st.write(monthly_df.head(20))
-    st.write(monthly_df.tail(20))
-    st.write("Monthly date range:", monthly_df["month_dt"].min(), " → ", monthly_df["month_dt"].max())
-
-    st.subheader("DEBUG: Seasonal Expanded DF")
-    st.write(seasonal_df.head(20))
-    st.write(seasonal_df.tail(20))
-    st.write("Seasonal date range:", seasonal_df["month_dt"].min(), " → ", seasonal_df["month_dt"].max())
-
-    st.subheader("DEBUG: Combined Plot DF")
-    st.write(plot_df.sort_values("month_dt").head(30))
-    st.write(plot_df.sort_values("month_dt").tail(30))
-
-    st.write("Unique Types:", plot_df["Type"].unique())
-    st.write("Date range:", plot_df["month_dt"].min(), " → ", plot_df["month_dt"].max())
-
-
-
-
 
 
 
