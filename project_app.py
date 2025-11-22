@@ -1560,7 +1560,8 @@ def inspect_snow_drift():
     fig.add_scatter(
         x=monthly_df["month_label"],
         y=monthly_df["Qt_tonnes"],
-        mode="lines",
+        mode="lines+markers",   # add markers
+
         name="Monthly Qt",
         line=dict(width=3, color="rgba(0, 51, 153, 1)")  # dark blue
     )
