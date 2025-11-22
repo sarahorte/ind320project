@@ -1388,6 +1388,17 @@ def inspect_snow_drift():
     )
 
 
+    def month_to_timestamp(row):
+        season = row["season"]
+        month = row["month"]
+        if month >= 7:
+            year = season          # July–Dec
+        else:
+            year = season + 1      # Jan–Jun of the NEXT year
+        return pd.Timestamp(year=year, month=month, day=1)
+
+
+
     # Plot monthly and yearly snow drift together using Plotly
 
     st.subheader("Monthly + Yearly Snow Drift Visualization")
@@ -1405,10 +1416,21 @@ def inspect_snow_drift():
 
     # Create a proper time axis for each month (first day of month)
     monthly_df_plot = monthly_df.copy()
-    monthly_df_plot['month_dt'] = monthly_df_plot.apply(
-        lambda row: pd.Timestamp(year=row['season'], month=row['month'], day=1),
-        axis=1
-    )
+    def season_month_to_timestamp(row):
+        season = int(row['season'])
+        month = int(row['month'])
+
+        # July–Dec belong to the season year
+        if month >= 7:
+            year = season
+        else:
+            year = season + 1  # Jan–Jun belong to the next year
+
+        return pd.Timestamp(year=year, month=month, day=1)
+
+    monthly_df_plot['month_dt'] = monthly_df_plot.apply(season_month_to_timestamp, axis=1)
+
+
 
     monthly_df_plot['Qt_tonnes'] = monthly_df_plot['Qt (kg/m)'] / 1000
 
@@ -1449,41 +1471,6 @@ def inspect_snow_drift():
     )
 
     # Display
-    st.plotly_chart(fig, use_container_width=True)
-
-
-
-
-    # Plot monthly snow drift toghether with seasonal snow drift with plotly
-    fig = go.Figure()
-
-    # Monthly Qt
-    fig.add_trace(go.Bar(
-        x=[f"{row['season']}-{row['month']:02d}" for _, row in monthly_df.iterrows()],
-        y=monthly_df['Qt (tonnes/m)'],
-        name='Monthly Qt',
-        marker_color='lightblue'
-    ))
-
-    # Seasonal Qt
-    fig.add_trace(go.Scatter(
-        x=[str(season) for season in yearly_df['season']],
-        y=yearly_df['Qt (kg/m)'] / 1000,  # convert to tonnes/m
-        mode='lines+markers',
-        name='Seasonal Qt',
-        line=dict(color='darkblue', width=3),
-        marker=dict(size=8, color='orange')
-    ))
-
-    fig.update_layout(
-        title="Monthly and Seasonal Snow Drift (Qt)",
-        xaxis_title="Time",
-        yaxis_title="Qt (tonnes/m)",
-        barmode='group',
-        template="plotly_white",
-        hovermode="x unified"
-    )
-
     st.plotly_chart(fig, use_container_width=True)
 
 
