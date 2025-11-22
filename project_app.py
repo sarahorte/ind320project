@@ -1349,7 +1349,7 @@ def inspect_snow_drift():
     avg_sectors = sd.compute_average_sector(df_weather, T, F, theta)
     
     # Create the rose plot canvas with the average directional breakdown.
-    sd.plot_rose(avg_sectors, overall_avg_tonnes)
+    sd.plot_rose(avg_sectors, overall_avg, title="Rose plot")
 
 
 
