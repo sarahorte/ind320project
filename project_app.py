@@ -1351,12 +1351,6 @@ def inspect_snow_drift():
     )
     # -----------------------------
 
-    st.write(monthly_df.dtypes)
-    st.write(monthly_df.head())
-
-    st.write("Unique months in monthly_df:", monthly_df["month"].unique())
-    st.write("Any NaN in month?", monthly_df["month"].isna().sum())
-
 
 
     # -----------------------------
@@ -1406,6 +1400,43 @@ def inspect_snow_drift():
     plot_df = pd.concat([monthly_df[["month_dt", "Qt_tonnes", "Type"]], seasonal_df])
     plot_df.sort_values("month_dt", inplace=True)
     plot_df.reset_index(drop=True, inplace=True)
+
+
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+
+    # --- Monthly Qt (markers ON) ---
+    monthly_part = plot_df[plot_df["Type"] == "Monthly Qt"]
+    fig.add_trace(
+        go.Scatter(
+            x=monthly_part["month_dt"],
+            y=monthly_part["Qt_tonnes"],
+            mode="lines+markers",
+            name="Monthly Qt"
+        )
+    )
+
+    # --- Seasonal Qt (smooth line, NO markers) ---
+    seasonal_part = plot_df[plot_df["Type"] == "Seasonal Qt"]
+    fig.add_trace(
+        go.Scatter(
+            x=seasonal_part["month_dt"],
+            y=seasonal_part["Qt_tonnes"],
+            mode="lines",         # <--- ONLY line, no markers
+            name="Seasonal Qt"
+        )
+    )
+
+    fig.update_layout(
+        title="Monthly vs Seasonal Snow Drift (Qt)",
+        xaxis_title="Time",
+        yaxis_title="Qt (tonnes/m)",
+        template="plotly_white"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
 
 
     import plotly.express as px
