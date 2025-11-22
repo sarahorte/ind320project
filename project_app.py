@@ -1403,12 +1403,20 @@ def inspect_snow_drift():
 
     st.subheader("Monthly + Yearly Snow Drift Visualization")
 
+
     # --------------------------------------------------
-    # Prepare yearly data
+    # Prepare yearly data (align with datetime axis)
     # --------------------------------------------------
     yearly_df_plot = yearly_df.copy()
-    yearly_df_plot['season_label'] = yearly_df_plot['season'].astype(str)
     yearly_df_plot['Qt_tonnes'] = yearly_df_plot['Qt (kg/m)'] / 1000
+
+    def season_to_timestamp(season):
+        # Season "2020" means July 2020 – June 2021
+        # So use Jan 1, 2021 as representative timestamp
+        return pd.Timestamp(year=season+1, month=1, day=1)
+
+    yearly_df_plot['season_dt'] = yearly_df_plot['season'].apply(season_to_timestamp)
+
 
     # --------------------------------------------------
     # Prepare monthly data
@@ -1441,13 +1449,14 @@ def inspect_snow_drift():
 
     # ---- Yearly Qt line ----
     fig.add_trace(go.Scatter(
-        x=yearly_df_plot['season_label'],
+        x=yearly_df_plot['season_dt'],
         y=yearly_df_plot['Qt_tonnes'],
         mode='lines+markers',
         name='Yearly Qt',
         line=dict(width=4),
         marker=dict(size=10)
     ))
+
 
     # ---- Monthly Qt line ----
     fig.add_trace(go.Scatter(
