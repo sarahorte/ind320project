@@ -1526,66 +1526,56 @@ def inspect_snow_drift():
     st.plotly_chart(fig, use_container_width=True)
 
 
+    import plotly.express as px
 
+    # --- Add Month-Year labels ---
+    plot_df["month_label"] = plot_df["month_dt"].dt.strftime("%b %Y")
+    seasonal_df["month_label"] = seasonal_df["month_dt"].dt.strftime("%b %Y")
+    monthly_df["month_label"] = monthly_df["month_dt"].dt.strftime("%b %Y")
 
+    # --- Seasonal bar chart (no spacing, light blue transparent) ---
+    fig = px.bar(
+        seasonal_df,
+        x="month_label",
+        y="Qt_tonnes",
+        color="Type",
+        barmode="group",
+    )
 
-    # --- Formatting month label for nicer x-axis ---
-    plot_df["month_label"] = plot_df["month_dt"].dt.strftime("%Y-%m")
+    # Color the seasonal bars only (light blue w/ transparency)
+    fig.for_each_trace(
+        lambda t: t.update(
+            marker_color="rgba(135, 206, 250, 0.45)",  # light blue, transparent
+            showlegend=True
+        ) if t.name == "Seasonal Qt" else None
+    )
 
-    # --- Separate monthly + seasonal for custom styling ---
-    monthly_plot = plot_df[plot_df["Type"] == "Monthly Qt"]
-    seasonal_plot = plot_df[plot_df["Type"] == "Seasonal Qt"]
-
-    import plotly.graph_objects as go
-
-    fig = go.Figure()
-
-    # -----------------------------------------
-    # 1. Seasonal bars (light blue, transparent, no gaps)
-    # -----------------------------------------
-    fig.add_trace(go.Bar(
-        x=seasonal_plot["month_label"],
-        y=seasonal_plot["Qt_tonnes"],
-        name="Seasonal Qt",
-        marker=dict(
-            color="rgba(135, 206, 250, 0.35)"  # light blue, semi-transparent
-        ),
-        width=1.0,          # fully remove spacing
-        offset=0,           # no gap
-    ))
-
-    # -----------------------------------------
-    # 2. Monthly bars (darker blue)
-    # -----------------------------------------
-    fig.add_trace(go.Bar(
-        x=monthly_plot["month_label"],
-        y=monthly_plot["Qt_tonnes"],
-        name="Monthly Qt",
-        marker=dict(
-            color="rgba(30, 90, 200, 0.9)"  # dark blue
-        ),
-        width=1.0,          # fully remove spacing
-        offset=0,
-    ))
-
-    # -----------------------------------------
-    # Layout tweaks
-    # -----------------------------------------
+    # Remove spacing between bars
     fig.update_layout(
-        barmode="overlay",          # stack seasonal behind monthly
-        bargap=0.0,                 # remove *all* gaps between bars
-        bargroupgap=0.0,            # remove group gaps
+        bargap=0,      # gap between bars in a group
+        bargroupgap=0, # gap between groups
+    )
+
+    # --- Add monthly Qt line (dark blue) ---
+    fig.add_scatter(
+        x=monthly_df["month_label"],
+        y=monthly_df["Qt_tonnes"],
+        mode="lines",
+        name="Monthly Qt",
+        line=dict(width=3, color="rgba(0, 51, 153, 1)")  # dark blue
+    )
+
+    # --- Styling ---
+    fig.update_layout(
         title="Monthly vs Seasonal Snow Drift (Qt)",
         xaxis_title="Month",
         yaxis_title="Qt (tonnes/m)",
         template="plotly_white",
+        legend_title_text="Qt Type",
+        xaxis_tickangle=45
     )
 
-    # Fix x-axis tick labels for readability
-    fig.update_xaxes(tickangle=45)
-
     st.plotly_chart(fig, use_container_width=True)
-
 
 
 
