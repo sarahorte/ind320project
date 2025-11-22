@@ -1400,6 +1400,25 @@ def inspect_snow_drift():
 
 
 
+    # -----------------------------
+    # 3. Combine monthly + seasonal
+    # -----------------------------
+    plot_df = pd.concat([monthly_df[["month_dt", "Qt_tonnes", "Type"]], seasonal_df])
+    plot_df.sort_values("month_dt", inplace=True)
+    plot_df.reset_index(drop=True, inplace=True)
+
+    # -----------------------------
+    # 4. Inspect
+    # -----------------------------
+    st.subheader("DEBUG: Combined Plot DF")
+    st.write(plot_df.head(24))
+    st.write(plot_df.tail(24))
+    st.write("Date range:", plot_df["month_dt"].min(), "→", plot_df["month_dt"].max())
+    st.write("Unique Types:", plot_df["Type"].unique())
+
+
+
+
 
     st.subheader("DEBUG: Monthly DF")
     st.write(monthly_df.head(20))
