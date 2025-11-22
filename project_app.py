@@ -1255,17 +1255,17 @@ def inspect_mongo():
     st.write(prod_groups)
 
 
+
 # -----------------------------
 # Snow Drift Inspection Page
 # -----------------------------
 import Snow_drift as sd
-import plotly.express as px
-import plotly.graph_objects as go
 
 def inspect_snow_drift():
+    from datetime import datetime
     st.header("Snow Drift Analysis")
 
-    # -- require map selection --
+    # Check map selection
     if st.session_state.get("selected_feature_id") is None:
         st.warning("Please select a location on the map before calculating snow drift.")
         return
@@ -1275,49 +1275,35 @@ def inspect_snow_drift():
     st.write(f"Latitude: {lat:.6f}")
     st.write(f"Longitude: {lon:.6f}")
 
-    # Year range selection (snow years are e.g. 2019 -> 2019-2020)
+    # Year range selection. Can
     start_snowyear, end_snowyear = st.slider(
-        "Select snow-year range (each value is the START year, e.g. 2019 means Jul 2019–Jun 2020)",
+        "Select year range",
         min_value=2015,
         max_value=2023,
-        value=(2020, 2023),
+        value=(2020, 2023), # default range
         step=1
     )
 
-    # Parameters
-    T = 3000
-    F = 30000
-    theta = 0.5
+    # Standard default values for snow drift calculation
+    T = 3000      # Max transport distance [m]
+    F = 30000     # Fetch distance [m]
+    theta = 0.5   # Relocation coefficient
 
-    # ----------------------------
-    # Fetch ERA5 calendar years needed
-    # ----------------------------
-    # Important: to cover snowyear = Y (Jul Y → Jun Y+1) for end_snowyear,
-    # we must fetch calendar years start_snowyear ... end_snowyear+1
-    calendar_years = list(range(start_snowyear, end_snowyear + 2))  # note +2 because range end is exclusive
+    # Fetch weather data
+    # Assume lat, lon are defined, and start_snowyear, end_snowyear come from your slider
+    calendar_years = list(range(start_snowyear, end_snowyear + 2))  # +2 to include last snowyear's next year
 
     dfs = []
     for y in calendar_years:
-        try:
-            df_y = fetch_era5_data(lat, lon, y)
-            # fetch_era5_data returns an index-based DF with tz-aware index 'time'
-            dfs.append(df_y)
-        except Exception as e:
-            st.error(f"Error fetching year {y}: {e}")
-            return
+        df_year = fetch_era5_data(lat, lon, y)
+        dfs.append(df_year)
 
-    if not dfs:
-        st.error("No ERA5 data fetched.")
-        return
-
-    # Combine years (index is time)
+    # Combine all years into one DataFrame
     df_weather = pd.concat(dfs)
-    df_weather = df_weather[~df_weather.index.duplicated(keep='first')]  # drop duplicated timestamps
     df_weather.sort_index(inplace=True)
+    df_weather.reset_index(inplace=True)
 
-    # bring time index into a plain column for Snow_drift functions that expect column 'time'
-    df_weather = df_weather.reset_index().rename(columns={"index": "time"})
-    # rename columns to the names Snow_drift expects (if not already)
+
     df_weather.rename(columns={
         "temperature_2m": "temperature_2m (°C)",
         "precipitation": "precipitation (mm)",
@@ -1326,163 +1312,150 @@ def inspect_snow_drift():
         "wind_direction_10m": "wind_direction_10m (°)"
     }, inplace=True)
 
-    # ensure time is datetime (if tz-aware, keep it)
-    df_weather['time'] = pd.to_datetime(df_weather['time'])
 
-    # assign season (start year integer): July→Dec => year, Jan→Jun => year-1
-    # This yields season as an integer equal to the starting year of the Jul→Jun season.
+    # Convert the 'time' column to datetime.
+    df_weather['time'] = pd.to_datetime(df_weather['time'])
+    
+    # Define season: if month >= 7, season = current year; otherwise, season = previous year.
+    # Only rows from July onward get the season year
     df_weather['season'] = df_weather['time'].apply(lambda dt: dt.year if dt.month >= 7 else dt.year - 1)
+
     df_weather['month'] = df_weather['time'].dt.month
 
-    # Filter df_weather to only include seasons inside selected range
-    df_weather = df_weather[(df_weather['season'] >= start_snowyear) & (df_weather['season'] <= end_snowyear)]
-
-    if df_weather.empty:
-        st.warning("No weather data after filtering to selected snow-year range.")
-        return
-
-    st.info(f"Fetched {len(df_weather)} hourly records covering seasons {start_snowyear} → {end_snowyear}.")
-
-    # ----------------------------
-    # Yearly (seasonal) results
-    # ----------------------------
+        
+    # Compute seasonal results (yearly averages for each season).
     yearly_df = sd.compute_yearly_results(df_weather, T, F, theta)
-    if yearly_df.empty:
-        st.warning("No seasonal results returned from compute_yearly_results().")
-        return
+    overall_avg = yearly_df['Qt (kg/m)'].mean()
+    st.write(f"Overall average Qt over all seasons: {overall_avg / 1000:.1f} tonnes/m")
+    
+    yearly_df_disp = yearly_df.copy()
+    yearly_df_disp["Qt (tonnes/m)"] = yearly_df_disp["Qt (kg/m)"] / 1000
+    st.write("Yearly average snow drift (Qt) per season (in tonnes/m):")
+    st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
 
-    # Ensure yearly_df has canonical season column as string "YYYY-YYYY" and also starting-year int
-    # Some versions of the module set season to "2019-2020", others to int 2019. Normalize:
-    def parse_season_to_startyear(s):
-        try:
-            return int(s)  # already int
-        except Exception:
-            try:
-                return int(str(s).split("-")[0])
-            except Exception:
-                raise ValueError(f"Cannot parse season value: {s}")
 
-    yearly_df = yearly_df.copy()
-    yearly_df['season_start'] = yearly_df['season'].apply(parse_season_to_startyear)
-    yearly_df['Qt_tonnes'] = yearly_df['Qt (kg/m)'] / 1000.0
-    yearly_df = yearly_df.sort_values('season_start')
 
-    st.subheader("Yearly (seasonal) Qt")
-    st.dataframe(yearly_df[['season', 'Qt_tonnes', 'Control']].style.format({"Qt_tonnes": "{:.1f}"}))
+    # -----------------------------
+    # Monthly Snow Drift Calculation
+    # -----------------------------
+    st.subheader("Monthly Snow Drift")
 
-    # ----------------------------
-    # Monthly results (from sd.compute_monthly_results)
-    # ----------------------------
+    # Compute monthly results
     monthly_df = sd.compute_monthly_results(df_weather, T, F, theta)
-    if monthly_df.empty:
-        st.warning("No monthly results returned from compute_monthly_results().")
-        return
 
-    # ensure season is integer start year
-    monthly_df = monthly_df.copy()
-    # monthly_df['season'] may already be int; if it's a string like "2019-2020", parse
-    def month_season_to_int(s):
-        try:
-            return int(s)
-        except Exception:
-            try:
-                return int(str(s).split("-")[0])
-            except Exception:
-                raise ValueError(f"Cannot parse month season: {s}")
-    monthly_df['season'] = monthly_df['season'].apply(month_season_to_int)
-    monthly_df['Qt_tonnes'] = monthly_df['Qt (kg/m)'] / 1000.0
+    # Convert Qt to tonnes/m for readability
+    monthly_df['Qt (tonnes/m)'] = monthly_df['Qt (kg/m)'] / 1000
 
-    st.subheader("Monthly Qt (tonnes/m)")
-    st.dataframe(monthly_df[['season', 'month', 'Qt_tonnes']].style.format({"Qt_tonnes": "{:.2f}"}))
+    # Display monthly results
+    st.write("Monthly snow drift (Qt) results (in tonnes/m):")
+    st.dataframe(monthly_df[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
 
-    # ----------------------------
-    # Build month_dt (datetime for the 1st day of each month)
-    # month belongs to season: if month >=7 -> year = season, else year = season + 1
-    # ----------------------------
-    monthly_df = monthly_df.copy()
-    monthly_df['month_dt'] = monthly_df.apply(
-        lambda r: pd.Timestamp(
-            year=int(r['season']) if int(r['month']) >= 7 else int(r['season']) + 1,
-            month=int(r['month']),
+
+
+    # -----------------------------
+    # 1. Ensure monthly timestamps
+    # -----------------------------
+    monthly_df["month_dt"] = monthly_df.apply(
+        lambda row: pd.Timestamp(
+            year=int(row["season"]) if row["month"] >= 7 else int(row["season"]) + 1,
+            month=int(row["month"]),
             day=1
         ),
         axis=1
     )
+    monthly_df["Qt_tonnes"] = monthly_df["Qt (kg/m)"] / 1000
+    monthly_df["Type"] = "Monthly Qt"
 
-    # seasonal expanded: make a monthly timeline where each month of a season gets the same seasonal Qt
+
+    # -----------------------------
+    # 2. Expand seasonal Qt to match months
+    # -----------------------------
     seasonal_expanded = []
-    for _, r in yearly_df.iterrows():
-        start_year = int(r['season_start'])
-        qt = float(r['Qt_tonnes'])
-        # months Jul→Dec of start_year
-        for m in range(7, 13):
-            seasonal_expanded.append({"month_dt": pd.Timestamp(year=start_year, month=m, day=1), "Qt_tonnes": qt})
-        # months Jan→Jun of start_year+1
-        for m in range(1, 7):
-            seasonal_expanded.append({"month_dt": pd.Timestamp(year=start_year + 1, month=m, day=1), "Qt_tonnes": qt})
+
+    for _, row in yearly_df.iterrows():
+        # Extract starting year from "season" string like "2015-2016"
+        season_str = row["season"]
+        season_year = int(season_str.split("-")[0])  # first year
+        qt_tonnes = row["Qt (kg/m)"] / 1000
+
+        # Jul→Dec of season_year, Jan→Jun of season_year+1
+        months = list(range(7, 13)) + list(range(1, 7))
+        for m in months:
+            year = season_year if m >= 7 else season_year + 1
+            dt = pd.Timestamp(year=year, month=m, day=1)
+            seasonal_expanded.append({
+                "month_dt": dt,
+                "Qt_tonnes": qt_tonnes,
+                "Type": "Seasonal Qt"
+            })
 
     seasonal_df = pd.DataFrame(seasonal_expanded)
-    seasonal_df.sort_values("month_dt", inplace=True)
 
-    # Now prepare plot DataFrame
-    monthly_plot_df = monthly_df[['month_dt', 'Qt_tonnes']].copy()
-    monthly_plot_df['Type'] = 'Monthly Qt'
 
-    seasonal_plot_df = seasonal_df.copy()
-    seasonal_plot_df['Type'] = 'Seasonal Qt'
 
-    plot_df = pd.concat([seasonal_plot_df, monthly_plot_df], ignore_index=True)
-    plot_df.sort_values('month_dt', inplace=True)
+    # -----------------------------
+    # 3. Combine monthly + seasonal
+    # -----------------------------
+    plot_df = pd.concat([monthly_df[["month_dt", "Qt_tonnes", "Type"]], seasonal_df])
+    plot_df.sort_values("month_dt", inplace=True)
     plot_df.reset_index(drop=True, inplace=True)
 
-    # Debug prints (show to user so we can be sure)
-    st.subheader("Debug: time ranges")
-    st.write("Monthly range:", monthly_plot_df['month_dt'].min(), "→", monthly_plot_df['month_dt'].max())
-    st.write("Seasonal range:", seasonal_plot_df['month_dt'].min(), "→", seasonal_plot_df['month_dt'].max())
 
-    # ----------------------------
-    # Plot: seasonal bars (light translucent) + monthly line (dark)
-    # Use month_dt as datetime x-axis so both line & bars align
-    # ----------------------------
-    # seasonal bars: use seasonal_plot_df (one bar per month with repeated seasonal Qt)
-    fig = go.Figure()
 
-    # add seasonal bars (no gaps)
-    fig.add_trace(go.Bar(
-        x=seasonal_plot_df['month_dt'],
-        y=seasonal_plot_df['Qt_tonnes'],
-        name='Seasonal Qt',
-        marker_color='rgba(135,206,250,0.45)',  # light blue, 45% opacity
-        marker_line_color='rgba(135,206,250,0.6)',
-        marker_line_width=0,
-        opacity=0.45
-    ))
 
-    # add monthly line (darker blue)
-    fig.add_trace(go.Scatter(
-        x=monthly_plot_df['month_dt'],
-        y=monthly_plot_df['Qt_tonnes'],
-        mode='lines+markers',
-        name='Monthly Qt',
-        line=dict(color='rgb(0,51,153)', width=3),
-        marker=dict(size=6, color='rgb(0,51,153)')
-    ))
+    import plotly.express as px
 
-    # layout tweaks: remove gaps between bars on datetime axis by making bargap small and set bargroupgap small
-    fig.update_layout(
-        title="Monthly vs Seasonal Snow Drift (Qt)",
-        xaxis=dict(title='Month', type='date'),
-        yaxis=dict(title='Qt (tonnes/m)'),
-        bargap=0.0,
-        bargroupgap=0.0,
-        template='plotly_white',
-        hovermode='x unified'
+    # --- Add Month-Year labels ---
+    plot_df["month_label"] = plot_df["month_dt"].dt.strftime("%b %Y")
+    seasonal_df["month_label"] = seasonal_df["month_dt"].dt.strftime("%b %Y")
+    monthly_df["month_label"] = monthly_df["month_dt"].dt.strftime("%b %Y")
+
+    # --- Seasonal bar chart (no spacing, light blue transparent) ---
+    fig = px.bar(
+        seasonal_df,
+        x="month_label",
+        y="Qt_tonnes",
+        color="Type",
+        barmode="group",
     )
 
-    # make x ticks show month/year
-    fig.update_xaxes(tickformat="%b %Y", tickangle=45)
+    # Color the seasonal bars only (light blue w/ transparency)
+    fig.for_each_trace(
+        lambda t: t.update(
+            marker_color="rgba(135, 206, 250, 0.45)",  # light blue, transparent
+            showlegend=True
+        ) if t.name == "Seasonal Qt" else None
+    )
+
+    # Remove spacing between bars
+    fig.update_layout(
+        bargap=0,      # gap between bars in a group
+        bargroupgap=0, # gap between groups
+    )
+
+    # --- Add monthly Qt line (dark blue) ---
+    fig.add_scatter(
+        x=monthly_df["month_label"],
+        y=monthly_df["Qt_tonnes"],
+        mode="lines+markers",   # add markers
+
+        name="Monthly Qt",
+        line=dict(width=3, color="rgba(0, 51, 153, 1)")  # dark blue
+    )
+
+    # --- Styling ---
+    fig.update_layout(
+        title="Monthly vs Seasonal Snow Drift (Qt)",
+        xaxis_title="Month",
+        yaxis_title="Qt (tonnes/m)",
+        template="plotly_white",
+        legend_title_text="Qt Type",
+        xaxis_tickangle=45
+    )
 
     st.plotly_chart(fig, use_container_width=True)
+
+
 
 
 # -----------------------------
