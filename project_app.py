@@ -1416,16 +1416,16 @@ def inspect_snow_drift():
     seasonal_expanded = []
 
     for _, row in yearly_df.iterrows():
-        season_year = int(row["season"])
+        # Use integer season from df_weather
+        season_year = int(row["season"])  # safe because df_weather['season'] is int
         qt_tonnes = row["Qt (kg/m)"] / 1000
 
-        # the 12 months of the season: Jul→Dec of season year, Jan→Jun of next year
+        # Jul→Dec of season year, Jan→Jun of next year
         months = list(range(7, 13)) + list(range(1, 7))
 
         for m in months:
             year = season_year if m >= 7 else season_year + 1
             dt = pd.Timestamp(year=year, month=m, day=1)
-
             seasonal_expanded.append({
                 "month_dt": dt,
                 "Qt_tonnes": qt_tonnes,
@@ -1433,6 +1433,7 @@ def inspect_snow_drift():
             })
 
     seasonal_df = pd.DataFrame(seasonal_expanded)
+
 
     # ---- Prepare monthly series for plotting ----
     monthly_plot_df = monthly_df[["month_dt", "Qt_tonnes"]].copy()
