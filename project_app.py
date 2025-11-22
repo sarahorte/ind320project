@@ -1388,6 +1388,10 @@ def inspect_snow_drift():
     )
     # -----------------------------
 
+    st.write(monthly_df.dtypes)
+    st.write(monthly_df.head())
+
+
 
     # Create monthly timestamps
     monthly_df["month_dt"] = monthly_df.apply(
