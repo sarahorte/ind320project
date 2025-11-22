@@ -1379,6 +1379,10 @@ def inspect_snow_drift():
     # -----------------------------
     seasonal_expanded = []
 
+    # Make sure 'season' is int
+    yearly_df['season'] = yearly_df['season'].astype(int)
+
+
     for _, row in yearly_df.iterrows():
         season_year = int(row["season"])  # starting year of season
         qt_tonnes = row["Qt (kg/m)"] / 1000
