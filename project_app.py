@@ -1388,71 +1388,69 @@ def inspect_snow_drift():
     )
 
 
+    # Plot monthly and yearly snow drift together using Plotly
 
+    st.subheader("Monthly + Yearly Snow Drift Visualization")
 
-        # -----------------------------
-    # Plot Seasonal + Monthly Snow Drift
-    # -----------------------------
-    st.subheader("Seasonal and Monthly Snow Drift")
-
-    # Convert season string "2020-2021" → 2020 for plotting
+    # --------------------------------------------------
+    # Prepare yearly data
+    # --------------------------------------------------
     yearly_df_plot = yearly_df.copy()
-    yearly_df_plot["season_start"] = yearly_df_plot["season"].apply(lambda s: int(s.split("-")[0]))
+    yearly_df_plot['season_label'] = yearly_df_plot['season'].astype(str)
+    yearly_df_plot['Qt_tonnes'] = yearly_df_plot['Qt (kg/m)'] / 1000
 
-    # Create Plotly figure
-    fig2 = go.Figure()
+    # --------------------------------------------------
+    # Prepare monthly data
+    # --------------------------------------------------
 
-    # ---- SEASONAL Qt ----
-    fig2.add_trace(go.Scatter(
-        x=yearly_df_plot["season_start"],
-        y=yearly_df_plot["Qt (kg/m)"] / 1000,
-        mode="lines+markers",
-        name="Seasonal Qt",
-        line=dict(width=4),
-        marker=dict(size=10),
-    ))
-
-    # ---- MONTHLY Qt ----
-    # Convert month 1–12 into snow-season order: Jul(7)→Jun(6)
-    month_order = [7,8,9,10,11,12,1,2,3,4,5,6]
-
+    # Create a proper time axis for each month (first day of month)
     monthly_df_plot = monthly_df.copy()
-    monthly_df_plot["month_index"] = monthly_df_plot["month"].apply(lambda m: month_order.index(m))
-
-    # Combine season and month index to create a proper increasing x-value
-    monthly_df_plot["x"] = monthly_df_plot["season"] * 100 + monthly_df_plot["month_index"]
-
-    fig2.add_trace(go.Scatter(
-        x=monthly_df_plot["x"],
-        y=monthly_df_plot["Qt (kg/m)"] / 1000,
-        mode="lines+markers",
-        name="Monthly Qt",
-        line=dict(dash="dot", width=2),
-        marker=dict(size=6),
-        opacity=0.7
-    ))
-
-    # Format x-axis: Show readable labels like "2020 Jul", "2020 Aug", …
-    monthly_df_plot["label"] = monthly_df_plot.apply(
-        lambda row: f"{row['season']} {['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun'][month_order.index(row['month'])]}",
+    monthly_df_plot['month_dt'] = monthly_df_plot.apply(
+        lambda row: pd.Timestamp(year=row['season'], month=row['month'], day=1),
         axis=1
     )
 
-    fig2.update_layout(
-        title="Seasonal and Monthly Snow Drift (Qt)",
-        xaxis_title="Season / Month",
+    monthly_df_plot['Qt_tonnes'] = monthly_df_plot['Qt (kg/m)'] / 1000
+
+    # --------------------------------------------------
+    # Create joint Plotly figure
+    # --------------------------------------------------
+    fig = go.Figure()
+
+    # ---- Yearly Qt line ----
+    fig.add_trace(go.Scatter(
+        x=yearly_df_plot['season_label'],
+        y=yearly_df_plot['Qt_tonnes'],
+        mode='lines+markers',
+        name='Yearly Qt',
+        line=dict(width=4),
+        marker=dict(size=10)
+    ))
+
+    # ---- Monthly Qt line ----
+    fig.add_trace(go.Scatter(
+        x=monthly_df_plot['month_dt'],
+        y=monthly_df_plot['Qt_tonnes'],
+        mode='lines+markers',
+        name='Monthly Qt',
+        line=dict(width=2, dash='dash'),
+        marker=dict(size=6)
+    ))
+
+    # --------------------------------------------------
+    # Layout
+    # --------------------------------------------------
+    fig.update_layout(
+        title="Monthly and Yearly Snow Drift (Qt)",
+        xaxis_title="Time",
         yaxis_title="Qt (tonnes/m)",
         template="plotly_white",
-        xaxis=dict(
-            tickmode="array",
-            tickvals=monthly_df_plot["x"],
-            ticktext=monthly_df_plot["label"],
-            tickangle=45
-        ),
-        hovermode="x unified"
+        hovermode="x unified",
     )
 
-    st.plotly_chart(fig2, use_container_width=True)
+    # Display
+    st.plotly_chart(fig, use_container_width=True)
+
 
 
 
