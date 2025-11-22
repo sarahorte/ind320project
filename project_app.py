@@ -1388,6 +1388,74 @@ def inspect_snow_drift():
     )
 
 
+    # -----------------------------
+    # Monthly + Yearly Plot
+    # -----------------------------
+    st.subheader("Monthly + Yearly Snow Drift Visualization")
+
+    # ---- Prepare yearly data ----
+    yearly_df_plot = yearly_df.copy()
+    yearly_df_plot["Qt_tonnes"] = yearly_df_plot["Qt (kg/m)"] / 1000
+
+    # Convert each season to a datetime at the middle of the season (Jan 1 of next year)
+    def season_to_middate(season):
+        return pd.Timestamp(year=season + 1, month=1, day=1)
+
+    yearly_df_plot["date"] = yearly_df_plot["season"].apply(season_to_middate)
+
+    # ---- Prepare monthly data ----
+    monthly_df_plot = monthly_df.copy()
+
+    def season_month_to_timestamp(row):
+        season = int(row["season"])
+        month = int(row["month"])
+        year = season if month >= 7 else season + 1
+        return pd.Timestamp(year=year, month=month, day=1)
+
+    monthly_df_plot["date"] = monthly_df_plot.apply(season_month_to_timestamp, axis=1)
+    monthly_df_plot["Qt_tonnes"] = monthly_df_plot["Qt (kg/m)"] / 1000
+
+    # ---- Create final figure ----
+    fig = go.Figure()
+
+    # YEARLY line
+    fig.add_trace(go.Scatter(
+        x=yearly_df_plot["date"],
+        y=yearly_df_plot["Qt_tonnes"],
+        mode="lines+markers",
+        name="Yearly Qt",
+        line=dict(width=4),
+        marker=dict(size=10)
+    ))
+
+    # MONTHLY line
+    fig.add_trace(go.Scatter(
+        x=monthly_df_plot["date"],
+        y=monthly_df_plot["Qt_tonnes"],
+        mode="lines+markers",
+        name="Monthly Qt",
+        line=dict(width=2, dash="dash"),
+        marker=dict(size=6)
+    ))
+
+    fig.update_layout(
+        title="Monthly and Yearly Snow Drift (Qt)",
+        xaxis_title="Time",
+        yaxis_title="Qt (tonnes/m)",
+        template="plotly_white",
+        hovermode="x unified"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+
+# -----------------------------
+
+
+
+
     def month_to_timestamp(row):
         season = row["season"]
         month = row["month"]
