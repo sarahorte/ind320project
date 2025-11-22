@@ -1379,12 +1379,10 @@ def inspect_snow_drift():
     # -----------------------------
     seasonal_expanded = []
 
-    # Make sure 'season' is int
-    yearly_df['season'] = yearly_df['season'].astype(int)
-
-
     for _, row in yearly_df.iterrows():
-        season_year = int(row["season"])  # starting year of season
+        # Extract starting year from "season" string like "2015-2016"
+        season_str = row["season"]
+        season_year = int(season_str.split("-")[0])  # first year
         qt_tonnes = row["Qt (kg/m)"] / 1000
 
         # Jul→Dec of season_year, Jan→Jun of season_year+1
@@ -1399,6 +1397,7 @@ def inspect_snow_drift():
             })
 
     seasonal_df = pd.DataFrame(seasonal_expanded)
+
 
 
 
