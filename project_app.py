@@ -1315,6 +1315,10 @@ def inspect_snow_drift():
 
     # Convert the 'time' column to datetime.
     df_weather['time'] = pd.to_datetime(df_weather['time'])
+
+    df_weather['month'] = df_weather['time'].dt.month
+    # show df_weather months for debugging
+    st.write(df_weather[['time', 'month']])
     
     # Define season: if month >= 7, season = current year; otherwise, season = previous year.
     # Only rows from July onward get the season year
@@ -1323,9 +1327,7 @@ def inspect_snow_drift():
     #OBS Show df_weather['season'] for debugging. the whole thing
     st.write(df_weather[['time', 'season']])
 
-    df_weather['month'] = df_weather['time'].dt.month
-    # show df_weather months for debugging
-    st.write(df_weather[['time', 'month']])
+
 
         
     # Compute seasonal results (yearly averages for each season).
