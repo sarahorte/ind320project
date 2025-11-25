@@ -1485,7 +1485,12 @@ def page_sliding_window_correlation():
     st.header("📈 Sliding Window Correlation: Weather vs Energy")
 
     @st.cache_data
-    def load_energy(collection, price_area: str):
+    def load_energy(collection_name: str, price_area: str):
+        if collection_name == "production":
+            collection = production_collection
+        else:
+            collection = consumption_collection
+
         df = pd.DataFrame(list(collection.find({"pricearea": price_area})))
 
         if df.empty:
@@ -1494,11 +1499,10 @@ def page_sliding_window_correlation():
 
         df["starttime"] = pd.to_datetime(df["starttime"])
         df = df.set_index("starttime").sort_index()
-
-        # Standardize column naming:
         df = df.rename(columns={"quantitykwh": "kwh"})
 
         return df
+
 
     
     def sliding_window_corr(df, col_x, col_y, window_hours, lag_hours):
