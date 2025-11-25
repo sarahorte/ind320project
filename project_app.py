@@ -1507,10 +1507,14 @@ def page_sliding_window_correlation():
         df = df.rename(columns={"quantitykwh": "kwh"})
         df = df.groupby(df.index).agg({"kwh": "sum"})
 
-        # Make tz-aware to match weather data
-        df.index = df.index.tz_localize("Europe/Oslo")  
+        # DST-safe conversion
+        if df.index.tz is None:
+            # tz-naive → assume UTC
+            df.index = df.index.tz_localize("UTC")
+        df.index = df.index.tz_convert("Europe/Oslo")  # convert to local Norwegian time
 
         return df
+
 
 
     # -----------------------------
