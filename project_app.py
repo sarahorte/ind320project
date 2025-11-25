@@ -1539,10 +1539,11 @@ pg_data = st.Page(page_data_table, title="Weather Data", icon="📋")
 pg_plots = st.Page(page_plots, title="Weather Plots", icon="📈")
 pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
 pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
-pg_sliding_window = st.Page(page_sliding_window_correlation, title="Sliding Window Correlation", icon="🔄")
+
 
 pg_inspect = st.Page(inspect_mongo, title="Inspect MongoDB", icon="🔍")
 pg_snow = st.Page(inspect_snow_drift, title="Snow Drift", icon="❄️")
+pg_sliding_window = st.Page(page_sliding_window_correlation, title="Sliding Window Correlation", icon="🔄")
 
 nav = st.navigation(pages=[
     pg_home,
@@ -1553,7 +1554,8 @@ nav = st.navigation(pages=[
     pg_newB,
     pg_map,
     pg_inspect,
-    pg_snow
+    pg_snow,
+    pg_sliding_window
 ])
 nav.run()
 
