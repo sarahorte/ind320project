@@ -1502,13 +1502,16 @@ def page_sliding_window_correlation():
         if df.empty:
             return pd.DataFrame()
 
-        # Normalize datetime and column names
         df["starttime"] = pd.to_datetime(df["starttime"])
         df = df.set_index("starttime").sort_index()
         df = df.rename(columns={"quantitykwh": "kwh"})
-        # Aggregate in case multiple groups exist
         df = df.groupby(df.index).agg({"kwh": "sum"})
+
+        # Make tz-aware to match weather data
+        df.index = df.index.tz_localize("Europe/Oslo")  
+
         return df
+
 
     # -----------------------------
     # Sliding window correlation
