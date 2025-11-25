@@ -1477,15 +1477,20 @@ def inspect_snow_drift():
     st.plotly_chart(fig, use_container_width=True)
 
 
+
 # -----------------------------
 # Page: Sliding Window Correlation
 # -----------------------------
-import plotly.express as px
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
 
 def page_sliding_window_correlation():
     st.header("📈 Sliding Window Correlation: Weather vs Energy")
 
-    # --- Cached loader with safe args ---
+    # -----------------------------
+    # Cached loader for energy data
+    # -----------------------------
     @st.cache_data
     def load_energy(collection_name: str, price_area: str):
         if collection_name == "production":
@@ -1494,97 +1499,111 @@ def page_sliding_window_correlation():
             collection = consumption_collection
 
         df = pd.DataFrame(list(collection.find({"pricearea": price_area})))
-
         if df.empty:
             return pd.DataFrame()
 
+        # Normalize datetime and column names
         df["starttime"] = pd.to_datetime(df["starttime"])
         df = df.set_index("starttime").sort_index()
-
-        # standardize naming
         df = df.rename(columns={"quantitykwh": "kwh"})
-
-        # if multiple groups overlap → sum by hour
+        # Aggregate in case multiple groups exist
         df = df.groupby(df.index).agg({"kwh": "sum"})
-
         return df
 
+    # -----------------------------
+    # Sliding window correlation
+    # -----------------------------
     def sliding_window_corr(df, col_x, col_y, window_hours, lag_hours):
         df = df.copy()
         df[col_y + "_lagged"] = df[col_y].shift(lag_hours)
-
         corr = df[col_x].rolling(f"{window_hours}H").corr(df[col_y + "_lagged"])
         return corr
 
-    # ----------------------------
+    # -----------------------------
     # User selections
-    # ----------------------------
-    selected_area = st.session_state.get("selected_area", "NO1")
+    # -----------------------------
+    selected_area = st.selectbox("Select price area", ["NO1","NO2","NO3","NO4","NO5"])
+    energy_type = st.selectbox("Energy dataset", ["Production", "Consumption"])
+    collection_name = "production" if energy_type == "Production" else "consumption"
 
-    energy_type = st.selectbox("Energy dataset:", ["Production", "Consumption"])
-
-    # --- Load energy ---
-    df_energy = load_energy(
-        "production" if energy_type == "Production" else "consumption",
-        selected_area
-    )
-
+    df_energy = load_energy(collection_name, selected_area)
     if df_energy.empty:
-        st.warning("No energy data for this area.")
+        st.warning(f"No {energy_type} data for {selected_area}.")
         return
 
-    # --- Load weather ---
     weather_year = st.selectbox("Weather year:", [2021, 2022, 2023, 2024], index=0)
     weather_df = load_weather_data(price_area=selected_area, year=weather_year)
-
     if weather_df.empty:
-        st.warning("No weather data.")
+        st.warning("No weather data available.")
         return
 
-    # ----------------------------
-    # Variable selection
-    # ----------------------------
-    weather_var = st.selectbox(
-        "Select a meteorological property:",
-        list(weather_df.columns)
-    )
+    weather_var = st.selectbox("Select a meteorological property:", list(weather_df.columns))
+    energy_var = "kwh"  # always kWh
 
-    energy_var = "kwh"   # always use kWh
-
-    # ----------------------------
-    # Merge
-    # ----------------------------
-    df = weather_df[[weather_var]].merge(
+    # -----------------------------
+    # Merge dataframes
+    # -----------------------------
+    df_merged = weather_df[[weather_var]].merge(
         df_energy[[energy_var]], left_index=True, right_index=True, how="inner"
     ).dropna()
-
-    if df.empty:
-        st.warning("No overlapping weather & energy timestamps.")
+    if df_merged.empty:
+        st.warning("No overlapping timestamps between weather and energy data.")
         return
 
-    # ----------------------------
-    # Window + lag controls
-    # ----------------------------
+    # -----------------------------
+    # Controls: window and lag
+    # -----------------------------
     col1, col2 = st.columns(2)
     window = col1.slider("Window length (hours)", 6, 240, 72)
     lag = col2.slider("Lag (hours)", -48, 48, 0)
 
-    # ----------------------------
-    # Compute correlation
-    # ----------------------------
-    corr_series = sliding_window_corr(df, weather_var, energy_var, window, lag)
+    # Compute rolling correlation
+    corr_series = sliding_window_corr(df_merged, weather_var, energy_var, window, lag)
 
-    # ----------------------------
-    # Plot
-    # ----------------------------
-    fig = px.line(
-        corr_series,
-        labels={"value": "Correlation", "index": "Time"},
-        title=f"Rolling Correlation: {weather_var} vs {energy_var}"
-    )
-    fig.update_layout(height=450)
+    # -----------------------------
+    # Interactive marker time selection
+    # -----------------------------
+    marker_index = st.slider("Select time to highlight correlation", 0, len(corr_series)-1, len(corr_series)//2)
 
+    # -----------------------------
+    # Plot rolling correlation with marker
+    # -----------------------------
+    fig = go.Figure()
+    # Rolling correlation line
+    fig.add_trace(go.Scatter(
+        x=corr_series.index,
+        y=corr_series.values,
+        mode="lines",
+        name=f"Rolling Corr ({weather_var} vs {energy_var})"
+    ))
+    # Marker for selected time
+    fig.add_trace(go.Scatter(
+        x=[corr_series.index[marker_index]],
+        y=[corr_series.iloc[marker_index]],
+        mode="markers",
+        marker=dict(color="red", size=10),
+        name="Selected time"
+    ))
+    fig.update_yaxes(title_text="Correlation", range=[-1,1])
+    fig.update_xaxes(title_text="Time")
+    fig.update_layout(height=450, title=f"Sliding Window Correlation (lag={lag}h, window={window}h)")
     st.plotly_chart(fig, use_container_width=True)
+
+    # -----------------------------
+    # Optional: show raw series
+    # -----------------------------
+    with st.expander("Show raw time series"):
+        fig_raw = go.Figure()
+        fig_raw.add_trace(go.Scatter(x=df_merged.index, y=df_merged[weather_var], name=weather_var))
+        fig_raw.add_trace(go.Scatter(x=df_merged.index, y=df_merged[energy_var], name=energy_var, yaxis="y2"))
+        fig_raw.update_layout(
+            yaxis=dict(title=weather_var),
+            yaxis2=dict(title=energy_var, overlaying="y", side="right"),
+            xaxis_title="Time",
+            height=450
+        )
+        st.plotly_chart(fig_raw, use_container_width=True)
+
 
 
 
