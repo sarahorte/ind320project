@@ -1342,6 +1342,8 @@ def inspect_snow_drift():
     st.write("Yearly average snow drift (Qt) per season (in tonnes/m):")
     st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
 
+
+
     overall_avg_tonnes = overall_avg / 1000
     st.write(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
     
@@ -1475,6 +1477,56 @@ def inspect_snow_drift():
     st.plotly_chart(fig, use_container_width=True)
 
 
+# -----------------------------
+# Page: Sliding Window Correlation
+# -----------------------------
+import plotly.express as px
+# Add a new page called "Sliding Window Correlation"
+def page_sliding_window_correlation():
+    st.header("📈 Sliding Window Correlation: Weather vs Energy")
+
+    # --- Load data ---
+    energy_type = st.selectbox("Energy dataset:", ["Production", "Consumption"])
+    if energy_type == "Production":
+        df_energy = load_energy(production_collection)
+    else:
+        df_energy = load_energy(consumption_collection)
+
+    weather_year = st.number_input("Weather year:", min_value=2018, max_value=2024, value=2021)
+    weather_df = load_weather_data(price_area="NO1", year=weather_year)
+
+    # --- Pick variables ---
+    weather_var = st.selectbox("Select a meteorological property:", list(weather_df.columns))
+    energy_var = st.selectbox("Select an energy property:", [c for c in df_energy.columns if c != "_id"])
+
+    # --- Merge ---
+    df = weather_df[[weather_var]].merge(df_energy[[energy_var]], left_index=True, right_index=True, how="inner")
+    df = df.dropna()
+
+    # --- User controls ---
+    col1, col2 = st.columns(2)
+    window = col1.slider("Window length (hours)", 6, 240, 72)
+    lag = col2.slider("Lag (hours)", -48, 48, 0)
+
+    # --- Compute correlation ---
+    corr_series = sliding_window_corr(df, weather_var, energy_var, window, lag)
+
+    # --- Plot ---
+    fig = px.line(
+        corr_series,
+        title=f"Rolling Correlation ({weather_var} vs {energy_var})",
+        labels={"value": "Correlation", "index": "Time"}
+    )
+    fig.update_layout(height=400)
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+
+
+
+
 
 
 # -----------------------------
@@ -1487,6 +1539,7 @@ pg_data = st.Page(page_data_table, title="Weather Data", icon="📋")
 pg_plots = st.Page(page_plots, title="Weather Plots", icon="📈")
 pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
 pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
+pg_sliding_window = st.Page(page_sliding_window_correlation, title="Sliding Window Correlation", icon="🔄")
 
 pg_inspect = st.Page(inspect_mongo, title="Inspect MongoDB", icon="🔍")
 pg_snow = st.Page(inspect_snow_drift, title="Snow Drift", icon="❄️")
