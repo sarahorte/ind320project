@@ -1484,11 +1484,22 @@ import plotly.express as px
 def page_sliding_window_correlation():
     st.header("📈 Sliding Window Correlation: Weather vs Energy")
 
-    def load_energy(collection):
-        df = pd.DataFrame(list(collection.find()))
-        df["time"] = pd.to_datetime(df["time"])
-        df.set_index("time", inplace=True)
-        return df.sort_index()
+    @st.cache_data
+    def load_energy(collection, price_area: str):
+        df = pd.DataFrame(list(collection.find({"pricearea": price_area})))
+
+        if df.empty:
+            st.error(f"No data found for price area {price_area}")
+            return pd.DataFrame()
+
+        df["starttime"] = pd.to_datetime(df["starttime"])
+        df = df.set_index("starttime").sort_index()
+
+        # Standardize column naming:
+        df = df.rename(columns={"quantitykwh": "kwh"})
+
+        return df
+
     
     def sliding_window_corr(df, col_x, col_y, window_hours, lag_hours):
         df = df.copy()
@@ -1504,18 +1515,22 @@ def page_sliding_window_correlation():
         )
 
         return corr
+    
+    # Let the user select price area
+    selected_area = st.session_state.get("selected_area", "NO1")
 
-
+    # Let the user select weather properties
+    selected_weather_property = st.session_state.get("selected_weather_property", None)
 
     # --- Load data ---
     energy_type = st.selectbox("Energy dataset:", ["Production", "Consumption"])
     if energy_type == "Production":
-        df_energy = load_energy(production_collection)
+        df_energy = load_energy(production_collection, selected_area)
     else:
-        df_energy = load_energy(consumption_collection)
+        df_energy = load_energy(consumption_collection, selected_area)
 
     weather_year = st.number_input("Weather year:", min_value=2018, max_value=2024, value=2021)
-    weather_df = load_weather_data(price_area="NO1", year=weather_year)
+    weather_df = load_weather_data(price_area=selected_area, year=weather_year)
 
     # --- Pick variables ---
     weather_var = st.selectbox("Select a meteorological property:", list(weather_df.columns))
