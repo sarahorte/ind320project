@@ -1481,9 +1481,31 @@ def inspect_snow_drift():
 # Page: Sliding Window Correlation
 # -----------------------------
 import plotly.express as px
-# Add a new page called "Sliding Window Correlation"
 def page_sliding_window_correlation():
     st.header("📈 Sliding Window Correlation: Weather vs Energy")
+
+    def load_energy(collection):
+        df = pd.DataFrame(list(collection.find()))
+        df["time"] = pd.to_datetime(df["time"])
+        df.set_index("time", inplace=True)
+        return df.sort_index()
+    
+    def sliding_window_corr(df, col_x, col_y, window_hours, lag_hours):
+        df = df.copy()
+
+        # Apply lag
+        df[col_y + "_lagged"] = df[col_y].shift(lag_hours)
+
+        # Rolling correlation
+        corr = (
+            df[col_x]
+            .rolling(f"{window_hours}H")
+            .corr(df[col_y + "_lagged"])
+        )
+
+        return corr
+
+
 
     # --- Load data ---
     energy_type = st.selectbox("Energy dataset:", ["Production", "Consumption"])
