@@ -1481,154 +1481,110 @@ def inspect_snow_drift():
 # Page: Sliding Window Correlation
 # -----------------------------
 import plotly.express as px
-import plotly.graph_objects as go
 
 def page_sliding_window_correlation():
     st.header("📈 Sliding Window Correlation: Weather vs Energy")
 
-    # --- Data loader (cacheable) ---
+    # --- Cached loader with safe args ---
     @st.cache_data
     def load_energy(collection_name: str, price_area: str):
-        """Return a dataframe indexed by starttime with a 'kwh' column and group column preserved."""
         if collection_name == "production":
             collection = production_collection
-            group_col = "productiongroup"
         else:
             collection = consumption_collection
-            group_col = "groupname"
 
-        cursor = collection.find({"pricearea": price_area})
-        df = pd.DataFrame(list(cursor))
+        df = pd.DataFrame(list(collection.find({"pricearea": price_area})))
 
         if df.empty:
-            return pd.DataFrame()  # caller should handle
+            return pd.DataFrame()
 
-        # normalize datetime and column names
         df["starttime"] = pd.to_datetime(df["starttime"])
         df = df.set_index("starttime").sort_index()
-        df = df.rename(columns={"quantitykwh": "kwh"})
-        # keep group_col if present
-        if group_col not in df.columns:
-            df[group_col] = None
 
-        # ensure numeric kwh
-        df["kwh"] = pd.to_numeric(df["kwh"], errors="coerce")
+        # standardize naming
+        df = df.rename(columns={"quantitykwh": "kwh"})
+
+        # if multiple groups overlap → sum by hour
+        df = df.groupby(df.index).agg({"kwh": "sum"})
 
         return df
 
-    # --- Helper: compute rolling correlation ---
     def sliding_window_corr(df, col_x, col_y, window_hours, lag_hours):
-        """
-        df: DataFrame with datetime index and numeric columns col_x and col_y
-        lag_hours: positive -> shift col_y forward (i.e., col_y(t+lag) compared to col_x(t))
-        """
         df = df.copy()
-        # shift uses periods; since data is hourly, shifting by hours is correct.
-        # But first attempt to infer frequency; if None, use shift with Timedelta
-        if pd.infer_freq(df.index) is not None:
-            # index has regular frequency -> use periods
-            df[col_y + "_lagged"] = df[col_y].shift(lag_hours)
-        else:
-            # use time-based shift
-            df[col_y + "_lagged"] = df[col_y].shift(freq=pd.Timedelta(hours=lag_hours))
+        df[col_y + "_lagged"] = df[col_y].shift(lag_hours)
 
-        # rolling with a time window works on a DatetimeIndex
         corr = df[col_x].rolling(f"{window_hours}H").corr(df[col_y + "_lagged"])
         return corr
 
-    # --- UI Controls: price area, energy type, year ---
-    selected_area = st.selectbox("Select price area", options=["NO1", "NO2", "NO3", "NO4", "NO5"], index=0)
-    energy_type = st.selectbox("Energy dataset", ["Production", "Consumption"])
+    # ----------------------------
+    # User selections
+    # ----------------------------
+    selected_area = st.session_state.get("selected_area", "NO1")
 
-    # Call load_energy with a string name (not a collection object) so caching works
-    collection_name = "production" if energy_type == "Production" else "consumption"
-    df_energy = load_energy(collection_name, selected_area)
+    energy_type = st.selectbox("Energy dataset:", ["Production", "Consumption"])
+
+    # --- Load energy ---
+    df_energy = load_energy(
+        "production" if energy_type == "Production" else "consumption",
+        selected_area
+    )
 
     if df_energy.empty:
-        st.warning(f"No {energy_type} data found for {selected_area}.")
+        st.warning("No energy data for this area.")
         return
 
-    # --- let user choose group aggregation (specific group or All -> sum) ---
-    group_col = "productiongroup" if collection_name == "production" else "groupname"
-    groups = sorted([g for g in df_energy[group_col].dropna().unique()])
-    groups = ["All (sum)"] + groups
-
-    selected_group = st.selectbox("Select energy group / aggregate", options=groups, index=0)
-
-    if selected_group == "All (sum)":
-        # sum across groups for each timestamp
-        df_energy_agg = df_energy[["kwh"]].groupby(df_energy.index).sum().rename(columns={"kwh": "kwh"})
-    else:
-        df_energy_agg = df_energy[df_energy[group_col] == selected_group][["kwh"]].copy()
-
-    # --- Load weather data (your existing function) ---
-    weather_year = st.number_input("Weather year:", min_value=2018, max_value=2024, value=2021)
+    # --- Load weather ---
+    weather_year = st.selectbox("Weather year:", [2021, 2022, 2023, 2024], index=0)
     weather_df = load_weather_data(price_area=selected_area, year=weather_year)
 
     if weather_df.empty:
-        st.warning("No weather data found.")
+        st.warning("No weather data.")
         return
 
-    # --- Variable selectors ---
-    weather_var = st.selectbox("Select a meteorological property:", options=list(weather_df.columns), index=0)
-    # energy_var is always kwh (we standardized it)
-    energy_var = st.selectbox("Select energy property:", options=["kwh"], index=0)
+    # ----------------------------
+    # Variable selection
+    # ----------------------------
+    weather_var = st.selectbox(
+        "Select a meteorological property:",
+        list(weather_df.columns)
+    )
 
-    # --- Merge on time index (inner join) and drop NAs ---
-    df_merged = weather_df[[weather_var]].merge(df_energy_agg[[energy_var]],
-                                               left_index=True, right_index=True, how="inner")
-    df_merged = df_merged.dropna()
-    if df_merged.empty:
-        st.warning("No overlapping timestamps between weather and energy data after merging.")
+    energy_var = "kwh"   # always use kWh
+
+    # ----------------------------
+    # Merge
+    # ----------------------------
+    df = weather_df[[weather_var]].merge(
+        df_energy[[energy_var]], left_index=True, right_index=True, how="inner"
+    ).dropna()
+
+    if df.empty:
+        st.warning("No overlapping weather & energy timestamps.")
         return
 
-    # --- window & lag controls ---
-    col1, col2 = st.columns([1,1])
-    window = col1.slider("Window length (hours)", min_value=6, max_value=240, value=72, step=1)
-    lag = col2.slider("Lag (hours)", min_value=-72, max_value=72, value=0, step=1)
+    # ----------------------------
+    # Window + lag controls
+    # ----------------------------
+    col1, col2 = st.columns(2)
+    window = col1.slider("Window length (hours)", 6, 240, 72)
+    lag = col2.slider("Lag (hours)", -48, 48, 0)
 
-    # --- compute rolling correlation series ---
-    corr_series = sliding_window_corr(df_merged, weather_var, energy_var, window_hours=window, lag_hours=lag)
+    # ----------------------------
+    # Compute correlation
+    # ----------------------------
+    corr_series = sliding_window_corr(df, weather_var, energy_var, window, lag)
 
-    # --- Plot raw time series ---
-    with st.expander("Show input time series"):
-        fig_raw = go.Figure()
-        fig_raw.add_trace(go.Scatter(x=df_merged.index, y=df_merged[weather_var], name=weather_var, mode="lines"))
-        fig_raw.add_trace(go.Scatter(x=df_merged.index, y=df_merged[energy_var], name=energy_var, mode="lines", yaxis="y2"))
-        # add secondary y axis
-        fig_raw.update_layout(
-            title="Input Time Series",
-            xaxis_title="Time",
-            yaxis_title=weather_var,
-            yaxis2=dict(title=energy_var, overlaying="y", side="right"),
-            height=450
-        )
-        st.plotly_chart(fig_raw, use_container_width=True)
+    # ----------------------------
+    # Plot
+    # ----------------------------
+    fig = px.line(
+        corr_series,
+        labels={"value": "Correlation", "index": "Time"},
+        title=f"Rolling Correlation: {weather_var} vs {energy_var}"
+    )
+    fig.update_layout(height=450)
 
-    # --- Plot rolling correlation ---
-    fig_corr = px.line(x=corr_series.index, y=corr_series.values,
-                       labels={"x": "Time", "y": "Correlation"},
-                       title=f"Rolling correlation: {weather_var} vs {energy_var} (lag={lag}h, window={window}h)")
-    fig_corr.update_yaxes(range=[-1,1])
-    st.plotly_chart(fig_corr, use_container_width=True)
-
-    # --- Optional heatmap: correlation vs lag (quick scan) ---
-    if st.checkbox("Show lag vs correlation heatmap (scan multiple lags)"):
-        lags = list(range(-48, 49, 4))  # from -48h to +48h in 4h steps (adjust as needed)
-        corrs = []
-        for L in lags:
-            s = sliding_window_corr(df_merged, weather_var, energy_var, window_hours=window, lag_hours=L)
-            # take median or mean of rolling correlations as summary
-            corrs.append(s.median(skipna=True))
-        heat_df = pd.DataFrame({"lag": lags, "median_corr": corrs})
-        fig_hm = px.line(heat_df, x="lag", y="median_corr",
-                         labels={"lag": "Lag (hours)", "median_corr": "Median rolling correlation"},
-                         title="Median rolling correlation vs lag (summary)")
-        st.plotly_chart(fig_hm, use_container_width=True)
-
-
-
-
+    st.plotly_chart(fig, use_container_width=True)
 
 
 
