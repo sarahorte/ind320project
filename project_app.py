@@ -1567,10 +1567,6 @@ def page_sliding_window_correlation():
     # Compute rolling correlation
     corr_series = sliding_window_corr(df_merged, weather_var, energy_var, window, lag)
 
-    # -----------------------------
-    # Interactive marker time selection
-    # -----------------------------
-    marker_index = st.slider("Select time to highlight correlation", 0, len(corr_series)-1, len(corr_series)//2)
 
     # -----------------------------
     # Plot rolling correlation with marker
@@ -1582,14 +1578,6 @@ def page_sliding_window_correlation():
         y=corr_series.values,
         mode="lines",
         name=f"Rolling Corr ({weather_var} vs {energy_var})"
-    ))
-    # Marker for selected time
-    fig.add_trace(go.Scatter(
-        x=[corr_series.index[marker_index]],
-        y=[corr_series.iloc[marker_index]],
-        mode="markers",
-        marker=dict(color="red", size=10),
-        name="Selected time"
     ))
     fig.update_yaxes(title_text="Correlation", range=[-1,1])
     fig.update_xaxes(title_text="Time")
