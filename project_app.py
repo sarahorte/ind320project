@@ -1584,6 +1584,20 @@ def page_sliding_window_correlation():
     fig.update_layout(height=450, title=f"Sliding Window Correlation (lag={lag}h, window={window}h)")
     st.plotly_chart(fig, use_container_width=True)
 
+
+    st.subheader("Scatter plot with lag")
+    df_scatter = df_merged.copy()
+    df_scatter["energy_lagged"] = df_scatter["kwh"].shift(lag)
+    st.plotly_chart(px.scatter(df_scatter, x=weather_var, y="energy_lagged", color=df_scatter.index))
+
+    # Example: correlation vs lag
+    lags = range(-48, 49, 6)  # every 6 hours
+    correlations = [sliding_window_corr(df_merged, weather_var, energy_var, window, lag).mean() for lag in lags]
+    st.plotly_chart(px.line(x=lags, y=correlations, labels={"x":"Lag (hours)", "y":"Mean rolling correlation"}))
+
+
+
+
     # -----------------------------
     # Optional: show raw series
     # -----------------------------
