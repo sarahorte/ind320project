@@ -1686,11 +1686,11 @@ def page_sarimax_forecasting():
     # -----------------------------
     st.subheader("Select Training Period")
 
-    # Define allowed min/max
-    min_date = pd.Timestamp("2021-01-01")
-    max_date = pd.Timestamp("2024-12-31")
+    # Allowed min/max
+    min_date = pd.Timestamp("2021-01-01", tz="Europe/Oslo")
+    max_date = pd.Timestamp("2024-12-31", tz="Europe/Oslo")
 
-    # User selects start and end dates within the allowed range
+    # User selects start and end dates (naive)
     start_date = st.date_input("Start date", min_value=min_date.date(), max_value=max_date.date(), value=min_date.date())
     end_date = st.date_input("End date", min_value=min_date.date(), max_value=max_date.date(), value=max_date.date())
 
@@ -1699,11 +1699,11 @@ def page_sarimax_forecasting():
         st.error("Start date must be before or equal to end date.")
         st.stop()
 
-    # Convert to timestamps
-    start_timestamp = pd.Timestamp(start_date)
-    end_timestamp = pd.Timestamp(end_date) + pd.Timedelta(hours=23, minutes=59, seconds=59)  # Include full last day
+    # Convert to tz-aware timestamps
+    start_timestamp = pd.Timestamp(start_date, tz="Europe/Oslo")
+    end_timestamp = pd.Timestamp(end_date, tz="Europe/Oslo") + pd.Timedelta(hours=23, minutes=59, seconds=59)
 
-    # Filter data
+    # Filter dataframe
     df_train = df_raw[(df_raw.index >= start_timestamp) & (df_raw.index <= end_timestamp)]
 
 
