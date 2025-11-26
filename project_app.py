@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
+from datetime import date
+
 #from analysis import spc_outlier_plotly, lof_precipitation_plotly, matplotlib_spectrogram, stl_decomposition_plotly_subplots
 # -----------------------------
 # Part 2: MongoDB connection
@@ -1678,11 +1680,6 @@ def page_sarimax_forecasting():
         df_group.index = df_group.index.tz_localize("UTC")
 
     df_group.index = df_group.index.tz_convert("Europe/Oslo")
-
-    # -----------------------------
-    # Training period selection
-    # -----------------------------
-    st.subheader("Training Window")
 
     # -----------------------------
     # Training period (2021–2024 only)
