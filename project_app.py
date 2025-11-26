@@ -1713,17 +1713,40 @@ def page_sarimax_forecasting():
     # SARIMAX Parameters
     # -----------------------------
     st.subheader("SARIMAX Parameters")
+
     colA, colB, colC = st.columns(3)
 
-    p = colA.number_input("p", 0, 5, 1)
-    d = colA.number_input("d", 0, 2, 1)
-    q = colA.number_input("q", 0, 5, 1)
+    p = colA.number_input(
+        "p (AR order)", 0, 5, 1,
+        help="Autoregressive order: Number of previous timepoints used to predict current value. Typical: 1-3."
+    )
+    d = colA.number_input(
+        "d (Difference order)", 0, 2, 1,
+        help="Number of times the series is differenced to make it stationary. Usually 1 for energy data."
+    )
+    q = colA.number_input(
+        "q (MA order)", 0, 5, 1,
+        help="Moving average order: How many past forecast errors are included. Typical: 0-2."
+    )
 
-    P = colB.number_input("P", 0, 5, 1)
-    D = colB.number_input("D", 0, 2, 1)
-    Q = colB.number_input("Q", 0, 5, 1)
+    P = colB.number_input(
+        "P (Seasonal AR)", 0, 5, 1,
+        help="Seasonal autoregressive order: Like 'p' but for seasonal component. 1-2 for daily/weekly seasonality."
+    )
+    D = colB.number_input(
+        "D (Seasonal Difference)", 0, 1, 1,
+        help="Seasonal differencing: Remove repeating seasonal patterns. Usually 1 for hourly/daily data with weekly seasonality."
+    )
+    Q = colB.number_input(
+        "Q (Seasonal MA)", 0, 5, 1,
+        help="Seasonal moving average order: Like 'q' but for seasonal residuals. Typical: 0-2."
+    )
 
-    seasonal_period = colC.number_input("Seasonal period", 1, 1000, 24)
+    seasonal_period = colC.number_input(
+        "Seasonal period", 1, 168, 24,
+        help="Length of the repeating seasonal cycle. 24 for daily seasonality, 168 for weekly."
+    )
+
 
     # -----------------------------
     # Forecast Horizon
