@@ -1246,6 +1246,11 @@ def inspect_mongo():
     cons_groups = cons_df['groupname'].unique().tolist()
     st.write(cons_groups)
 
+    # same for production groups
+    st.subheader("Distinct productiongroup values in Production Data")
+    prod_groups = prod_df['productiongroup'].unique().tolist()
+    st.write(prod_groups)
+
     st.write("Record counts:")
     st.write("Production:", production_collection.count_documents({}))
     st.write("Consumption:", consumption_collection.count_documents({}))
