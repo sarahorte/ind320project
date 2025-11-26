@@ -1869,7 +1869,6 @@ pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
 pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
 
 
-pg_inspect = st.Page(inspect_mongo, title="Inspect MongoDB", icon="🔍")
 pg_snow = st.Page(inspect_snow_drift, title="Snow Drift", icon="❄️")
 pg_sliding_window = st.Page(page_sliding_window_correlation, title="Sliding Window Correlation", icon="🔄")
 pg_sarimax_forecasting = st.Page(page_sarimax_forecasting, title="SARIMAX Forecasting", icon="📊")
