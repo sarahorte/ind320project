@@ -1241,6 +1241,10 @@ def inspect_mongo():
 
     st.divider()
 
+    # Print the different consumption groups.
+    cons_groups = consumption_collection.distinct("groupName")
+    st.write(cons_groups)
+
     st.write("Record counts:")
     st.write("Production:", production_collection.count_documents({}))
     st.write("Consumption:", consumption_collection.count_documents({}))
