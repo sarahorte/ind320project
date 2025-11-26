@@ -1875,6 +1875,60 @@ def page_sarimax_forecasting():
 
         st.plotly_chart(fig, use_container_width=True)
 
+        # -----------------------------
+        # Zoomed-in forecast plot
+        # -----------------------------
+        plot_start = df_train.index[-100:]  # last 100 points of training
+        plot_end = forecast_mean.index[-1]  # end of forecast
+
+        fig_zoom = go.Figure()
+
+        # Observed data (last 100 points)
+        fig_zoom.add_trace(go.Scatter(
+            x=df_group.loc[plot_start[0]:plot_end].index,
+            y=df_group.loc[plot_start[0]:plot_end, "kwh"],
+            mode="lines",
+            name="Observed"
+        ))
+
+        # Forecast
+        fig_zoom.add_trace(go.Scatter(
+            x=forecast_mean.index,
+            y=forecast_mean,
+            mode="lines",
+            name="Forecast",
+            line=dict(dash="dash")
+        ))
+
+        # Confidence intervals
+        fig_zoom.add_trace(go.Scatter(
+            x=forecast_ci.index,
+            y=forecast_ci.iloc[:, 0],
+            fill=None,
+            mode="lines",
+            line=dict(width=0),
+            showlegend=False
+        ))
+
+        fig_zoom.add_trace(go.Scatter(
+            x=forecast_ci.index,
+            y=forecast_ci.iloc[:, 1],
+            fill="tonexty",
+            mode="lines",
+            line=dict(width=0),
+            name="Confidence Interval"
+        ))
+
+        fig_zoom.update_layout(
+            title=f"Zoomed Forecast for {selected_group} ({price_area})",
+            xaxis_title="Time",
+            yaxis_title="kWh",
+            height=500
+        )
+
+        st.plotly_chart(fig_zoom, use_container_width=True)
+
+
 
 
 # -----------------------------
