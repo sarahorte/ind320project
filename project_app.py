@@ -1721,22 +1721,49 @@ def page_sarimax_forecasting():
     # ---------------------------------------------------------
     # Training period
     # ---------------------------------------------------------
-    st.subheader("Training Period")
+    from datetime import date
 
-    min_date = df_group_agg.index.min().date()
-    max_date = df_group_agg.index.max().date()
+    # -----------------------------
+    # Training period selector (fixed)
+    # -----------------------------
+    st.subheader("Select Training Period")
 
-    start_date = st.date_input("Start date", value=min_date, min_value=min_date, max_value=max_date)
-    end_date   = st.date_input("End date", value=max_date, min_value=min_date, max_value=max_date)
+    # These must be naive dates for Streamlit
+    start_limit = date(2021, 1, 1)
+    end_limit = date(2024, 12, 31)
+
+    start_date = st.date_input(
+        "Start date",
+        value=start_limit,
+        min_value=start_limit,
+        max_value=end_limit
+    )
+
+    end_date = st.date_input(
+        "End date",
+        value=end_limit,
+        min_value=start_limit,
+        max_value=end_limit
+    )
 
     if start_date > end_date:
-        st.error("Start date must be <= end date.")
-        return
+        st.error("Start date must be before end date.")
+        st.stop()
 
-    df_train = df_group_agg.loc[str(start_date):str(end_date)]
+    # Convert to tz-aware timestamps for filtering
+    start_ts = pd.Timestamp(start_date, tz="Europe/Oslo")
+    end_ts = pd.Timestamp(end_date, tz="Europe/Oslo") + pd.Timedelta(days=1)
+
+    st.write("Available data window:")
+    st.write("Min:", df_group.index.min())
+    st.write("Max:", df_group.index.max())
+
+    df_train = df_group.loc[start_ts:end_ts]
+
     if df_train.empty:
-        st.error("Training window contains no data.")
-        return
+        st.error("Your selected training window contains no data.")
+        st.stop()
+
 
     # ---------------------------------------------------------
     # Model parameters
