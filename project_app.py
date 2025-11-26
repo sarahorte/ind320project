@@ -1242,7 +1242,8 @@ def inspect_mongo():
     st.divider()
 
     # Print the different consumption groups.
-    cons_groups = consumption_collection.distinct("groupName")
+    st.subheader("Distinct groupName values in Consumption Data")
+    cons_groups = cons_df['groupname'].unique().tolist()
     st.write(cons_groups)
 
     st.write("Record counts:")
