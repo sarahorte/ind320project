@@ -1614,17 +1614,23 @@ def page_sliding_window_correlation():
 
 # ---------------------------
 
-
 # -----------------------------
 # PAGE: SARIMAX Forecasting
 # -----------------------------
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+import statsmodels.api as sm
+
 def page_sarimax_forecasting():
     st.title("SARIMAX Forecasting")
 
-    # --- Select data type ---
+    # -----------------------------
+    # Select data type: Production or Consumption
+    # -----------------------------
     data_type = st.radio("Select data type", ["production", "consumption"], horizontal=True)
 
-    # Collections + metadata
+    # Configure collection, columns, and labels based on data type
     if data_type == "production":
         collection = production_collection
         group_col = "productiongroup"
@@ -1636,86 +1642,77 @@ def page_sarimax_forecasting():
         value_col = "quantitykwh"
         title_label = "Energy Consumption"
 
-    # --- Select price area ---
+    # -----------------------------
+    # Select Price Area
+    # -----------------------------
     price_areas = sorted(collection.distinct("pricearea"))
     price_area = st.selectbox("Select Price Area", price_areas)
 
-    # --- Load raw data exactly like your Energy page ---
-    query_base = {"pricearea": price_area}
-    df_raw = pd.DataFrame(list(collection.find(query_base)))
-
+    # -----------------------------
+    # Load data from MongoDB
+    # -----------------------------
+    df_raw = pd.DataFrame(list(collection.find({"pricearea": price_area})))
     if df_raw.empty:
         st.error("No data found for this price area.")
         return
 
-    # Convert time and sort
+    # Convert time column to datetime
     df_raw["starttime"] = pd.to_datetime(df_raw["starttime"])
     df_raw = df_raw.sort_values("starttime")
 
-    # --- Select group (hydro, thermal, cabin, household, etc.) ---
+    # Make index tz-aware (UTC → Europe/Oslo)
+    df_raw = df_raw.set_index("starttime")
+    if df_raw.index.tz is None:
+        df_raw.index = df_raw.index.tz_localize("UTC")
+    df_raw.index = df_raw.index.tz_convert("Europe/Oslo")
+
+    # -----------------------------
+    # Select Group (e.g., hydro, thermal, cabin, etc.)
+    # -----------------------------
     if group_col not in df_raw.columns:
-        st.error(f"Column '{group_col}' missing from Mongo data. Available: {df_raw.columns.tolist()}")
+        st.error(f"Column '{group_col}' missing from Mongo data.")
         return
 
     groups = sorted(df_raw[group_col].dropna().unique().tolist())
     selected_group = st.selectbox(f"Select {group_col}", groups)
 
-    # --- Filter to the selected group ---
+    # Filter for the selected group
     df_group = df_raw[df_raw[group_col] == selected_group].copy()
-
     if df_group.empty:
         st.error("No data for this group.")
         return
 
-    # Aggregate hourly (sum kWh)
-    df_group = (
-        df_group.groupby("starttime")[value_col]
-        .sum()
-        .rename("kwh")
-        .to_frame()
-    )
-
-    # Ensure timezone (DST safe)
-    if df_group.index.tz is None:
-        df_group.index = df_group.index.tz_localize("UTC")
-
-    df_group.index = df_group.index.tz_convert("Europe/Oslo")
+    # Aggregate hourly sums
+    df_group = df_group.groupby(df_group.index)[value_col].sum().rename("kwh").to_frame()
 
     # -----------------------------
-    # Training period selection
+    # Training Period Selection
     # -----------------------------
     st.subheader("Select Training Period")
 
-    # Allowed min/max
     min_date = pd.Timestamp("2021-01-01", tz="Europe/Oslo")
     max_date = pd.Timestamp("2024-12-31", tz="Europe/Oslo")
 
-    # User selects start and end dates (naive)
     start_date = st.date_input("Start date", min_value=min_date.date(), max_value=max_date.date(), value=min_date.date())
     end_date = st.date_input("End date", min_value=min_date.date(), max_value=max_date.date(), value=max_date.date())
 
-    # Ensure start <= end
     if start_date > end_date:
         st.error("Start date must be before or equal to end date.")
         st.stop()
 
-    # Convert to tz-aware timestamps
     start_timestamp = pd.Timestamp(start_date, tz="Europe/Oslo")
     end_timestamp = pd.Timestamp(end_date, tz="Europe/Oslo") + pd.Timedelta(hours=23, minutes=59, seconds=59)
 
-    # Filter dataframe
-    df_train = df_raw[(df_raw.index >= start_timestamp) & (df_raw.index <= end_timestamp)]
-
-
+    # Filter training data
+    df_train = df_group[(df_group.index >= start_timestamp) & (df_group.index <= end_timestamp)]
     if df_train.empty:
         st.error("Training window contains no data.")
         return
 
     # -----------------------------
-    # SARIMAX settings
+    # SARIMAX Parameters
     # -----------------------------
     st.subheader("SARIMAX Parameters")
-
     colA, colB, colC = st.columns(3)
 
     p = colA.number_input("p", 0, 5, 1)
@@ -1729,17 +1726,17 @@ def page_sarimax_forecasting():
     seasonal_period = colC.number_input("Seasonal period", 1, 1000, 24)
 
     # -----------------------------
-    # Forecast horizon
+    # Forecast Horizon
     # -----------------------------
     forecast_hours = st.number_input("Forecast Horizon (hours)", 1, 240, 48)
 
     # -----------------------------
-    # Run Forecast
+    # Run SARIMAX Forecast
     # -----------------------------
     if st.button("Run SARIMAX Forecast"):
-        with st.spinner("Fitting model..."):
+        with st.spinner("Fitting SARIMAX model..."):
 
-            # Fit on training data
+            # Fit model on training data
             model = sm.tsa.statespace.SARIMAX(
                 df_train["kwh"],
                 order=(p, d, q),
@@ -1748,10 +1745,9 @@ def page_sarimax_forecasting():
                 enforce_stationarity=False,
                 enforce_invertibility=False
             )
-
             results = model.fit(disp=False)
 
-            # Rebuild model for full dataset
+            # Full model for forecasting (parameters fixed)
             model_full = sm.tsa.statespace.SARIMAX(
                 df_group["kwh"],
                 order=(p, d, q),
@@ -1760,10 +1756,9 @@ def page_sarimax_forecasting():
                 enforce_stationarity=False,
                 enforce_invertibility=False
             )
-
             results_full = model_full.filter(results.params)
 
-            # Forecast dynamically
+            # Dynamic forecast starting from last training timestamp
             last_train_time = df_train.index[-1]
             forecast_obj = results_full.get_prediction(
                 start=last_train_time,
@@ -1775,13 +1770,12 @@ def page_sarimax_forecasting():
             forecast_ci = forecast_obj.conf_int()
 
         # -----------------------------
-        # Plot results
+        # Plot Forecast
         # -----------------------------
         st.subheader("Forecast Results")
-
         fig = go.Figure()
 
-        # Original data
+        # Observed data
         fig.add_trace(go.Scatter(
             x=df_group.index,
             y=df_group["kwh"],
@@ -1825,8 +1819,6 @@ def page_sarimax_forecasting():
         )
 
         st.plotly_chart(fig, use_container_width=True)
-
-
 
 
 
