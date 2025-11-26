@@ -1613,6 +1613,8 @@ def page_sliding_window_correlation():
         st.plotly_chart(fig_raw, use_container_width=True)
 
 # ---------------------------
+
+
 # -----------------------------
 # PAGE: SARIMAX Forecasting
 # -----------------------------
@@ -1620,17 +1622,14 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import statsmodels.api as sm
-from datetime import date
 
 def page_sarimax_forecasting():
-    st.title("SARIMAX Forecasting of energy production and consumption")
+    st.title("SARIMAX Forecasting of Energy Production and Consumption")
 
     # -----------------------------
-    # Select data type: Production or Consumption
+    # Select data type
     # -----------------------------
     data_type = st.radio("Select data type", ["production", "consumption"], horizontal=True)
-
-    # Configure collection, columns, and labels based on data type
     if data_type == "production":
         collection = production_collection
         group_col = "productiongroup"
@@ -1649,173 +1648,117 @@ def page_sarimax_forecasting():
     price_area = st.selectbox("Select Price Area", price_areas)
 
     # -----------------------------
-    # Cached loader: load raw documents and make tz-aware index
+    # Load data with caching
     # -----------------------------
     @st.cache_data
     def load_energy_cached(collection_name: str, price_area: str):
         if collection_name == "production":
-            coll = production_collection
+            collection = production_collection
         else:
-            coll = consumption_collection
+            collection = consumption_collection
 
-        df = pd.DataFrame(list(coll.find({"pricearea": price_area})))
+        df = pd.DataFrame(list(collection.find({"pricearea": price_area})))
         if df.empty:
             return pd.DataFrame()
 
-        # normalize time and sort
         df["starttime"] = pd.to_datetime(df["starttime"])
-        df = df.sort_values("starttime").set_index("starttime")
-
-        # DST-safe: localize (if naive) then convert to Europe/Oslo
+        df = df.sort_values("starttime")
+        df = df.set_index("starttime")
         if df.index.tz is None:
             df.index = df.index.tz_localize("UTC")
         df.index = df.index.tz_convert("Europe/Oslo")
-
         return df
 
-    # Use cached version (fast on repeat)
     df_raw = load_energy_cached(data_type, price_area)
     if df_raw.empty:
         st.error("No data found for this price area.")
         return
 
     # -----------------------------
-    # Group selector (hydro, thermal, cabin, etc.)
+    # Select Group
     # -----------------------------
     if group_col not in df_raw.columns:
         st.error(f"Column '{group_col}' missing from Mongo data.")
-        st.write("Available columns:", df_raw.columns.tolist())
         return
 
-    groups = sorted(df_raw[group_col].dropna().unique().tolist())
+    groups = sorted(df_raw[group_col].dropna().unique())
     selected_group = st.selectbox(f"Select {group_col}", groups)
-
-    # Filter for the selected group (this is cheap)
     df_group = df_raw[df_raw[group_col] == selected_group].copy()
     if df_group.empty:
         st.error("No data for this group.")
         return
 
-    # Aggregate hourly sums (baseline)
-    df_group = df_group.groupby(df_group.index)[value_col].sum().rename("kwh").to_frame()
-
     # -----------------------------
-    # Aggregation options (Hourly/Daily/Weekly)
-    # -----------------------------
-    st.subheader("Aggregation Level")
-    agg_choice = st.radio(
-        "Select aggregation level",
-        ["Hourly", "Daily", "Weekly"],
-        horizontal=True,
-        help="Choose a coarser aggregation (Daily/Weekly) to allow longer, faster, more stable forecasts."
-    )
-
-    if agg_choice == "Hourly":
-        df_group_agg = df_group.resample("H").sum()
-        default_season = 24   # hours in a day
-        freq_str = "H"
-        seasonal_unit = "hours"
-    elif agg_choice == "Daily":
-        df_group_agg = df_group.resample("D").sum()
-        default_season = 7    # days in a week
-        freq_str = "D"
-        seasonal_unit = "days"
-    else:
-        df_group_agg = df_group.resample("W").sum()
-        default_season = 52   # weeks in a year (approx)
-        freq_str = "W"
-        seasonal_unit = "weeks"
-
-    # drop empty rows if any
-    df_group_agg = df_group_agg.dropna()
-
-    if df_group_agg.empty:
-        st.error("After aggregation there is no data. Try a different group/price area.")
-        return
-
-    # Show available data range (help user choose training period)
-    st.markdown(
-        f"**Available data range (after aggregation):** {df_group_agg.index.min().date()} → {df_group_agg.index.max().date()}"
-    )
-
-    # -----------------------------
-    # Training period selection (restricted to 2021-2024)
+    # Training Period Selection
     # -----------------------------
     st.subheader("Select Training Period")
-
-    allowed_start = date(2021, 1, 1)
-    allowed_end = date(2024, 12, 31)
-
-    start_date = st.date_input("Start date", min_value=allowed_start, max_value=allowed_end, value=allowed_start)
-    end_date = st.date_input("End date", min_value=allowed_start, max_value=allowed_end, value=allowed_end)
-
+    min_date = pd.Timestamp("2021-01-01", tz="Europe/Oslo")
+    max_date = pd.Timestamp("2024-12-31", tz="Europe/Oslo")
+    start_date = st.date_input("Start date", min_value=min_date.date(), max_value=max_date.date(), value=min_date.date())
+    end_date = st.date_input("End date", min_value=min_date.date(), max_value=max_date.date(), value=max_date.date())
     if start_date > end_date:
         st.error("Start date must be before or equal to end date.")
         st.stop()
-
-    # Convert selected naive dates to tz-aware timestamps matching the index
-    start_ts = pd.Timestamp(start_date, tz=df_group_agg.index.tz)
-    end_ts = pd.Timestamp(end_date, tz=df_group_agg.index.tz) + pd.Timedelta(hours=23, minutes=59, seconds=59)
-
-    # Filter training data (on aggregated series)
-    df_train = df_group_agg.loc[start_ts:end_ts]
-    if df_train.empty:
-        st.error("Training window contains no data for the selected aggregation. Try a different range.")
+    start_ts = pd.Timestamp(start_date, tz="Europe/Oslo")
+    end_ts = pd.Timestamp(end_date, tz="Europe/Oslo") + pd.Timedelta(hours=23, minutes=59, seconds=59)
+    df_group_window = df_group.loc[start_ts:end_ts]
+    if df_group_window.empty:
+        st.error("No data in this training period.")
         return
 
     # -----------------------------
-    # SARIMAX parameters with help text and reasonable defaults
+    # Frequency selection and aggregation
+    # -----------------------------
+    freq = st.radio("Select frequency for modeling", ["Hourly", "Daily", "Weekly"])
+    if freq == "Hourly":
+        df_group_agg = df_group_window.resample("H").mean()
+        forecast_label = "Forecast Horizon (hours)"
+        seasonal_units = "hours"
+    elif freq == "Daily":
+        df_group_agg = df_group_window.resample("D").mean()
+        forecast_label = "Forecast Horizon (days)"
+        seasonal_units = "days"
+    else:
+        df_group_agg = df_group_window.resample("W").mean()
+        forecast_label = "Forecast Horizon (weeks)"
+        seasonal_units = "weeks"
+
+    # Fill missing values lightly
+    df_group_agg = df_group_agg.interpolate(method="time").ffill().bfill()
+
+    # -----------------------------
+    # SARIMAX Parameters
     # -----------------------------
     st.subheader("SARIMAX Parameters")
-
     colA, colB, colC = st.columns(3)
 
-    p = colA.number_input("p (AR order)", min_value=0, max_value=5, value=1,
-                          help="Autoregressive order: number of lagged observations (typical 0-3).")
-    d = colA.number_input("d (diff order)", min_value=0, max_value=2, value=1,
-                          help="Number of differences to make the series stationary (typical 0-1).")
-    q = colA.number_input("q (MA order)", min_value=0, max_value=5, value=1,
-                          help="Moving-average order: size of residual window (typical 0-2).")
+    p = colA.number_input("p (AR order)", 0, 5, 1,
+                          help="Number of past values used to predict current value. Typical 1-3.")
+    d = colA.number_input("d (Difference order)", 0, 2, 1,
+                          help="Number of differences to make series stationary. Usually 1.")
+    q = colA.number_input("q (MA order)", 0, 5, 1,
+                          help="Number of past errors used. Typical 0-2.")
 
-    P = colB.number_input("P (seasonal AR)", min_value=0, max_value=5, value=1,
-                          help="Seasonal AR order (for the repeating seasonal component).")
-    D = colB.number_input("D (seasonal diff)", min_value=0, max_value=1, value=1,
-                          help="Seasonal differencing (usually 0 or 1).")
-    Q = colB.number_input("Q (seasonal MA)", min_value=0, max_value=5, value=1,
-                          help="Seasonal moving-average order.")
+    P = colB.number_input("P (Seasonal AR)", 0, 5, 1,
+                          help=f"Seasonal AR order ({seasonal_units}). Typical 1-2.")
+    D = colB.number_input("D (Seasonal difference)", 0, 1, 1,
+                          help=f"Seasonal differencing ({seasonal_units}). Usually 1.")
+    Q = colB.number_input("Q (Seasonal MA)", 0, 5, 1,
+                          help=f"Seasonal MA order ({seasonal_units}). Typical 0-2.")
 
-    seasonal_period = colC.number_input(
-        f"Seasonal period (in {seasonal_unit})",
-        min_value=1,
-        max_value=1000,
-        value=default_season,
-        help=f"The length of the seasonal cycle measured in {seasonal_unit}. E.g. hourly→24 (daily), daily→7 (weekly)."
-    )
+    seasonal_period = colC.number_input(f"Seasonal period ({seasonal_units})", 1, 168, 24,
+                                        help=f"Length of repeating seasonal cycle in {seasonal_units}.")
+
+    forecast_horizon = st.number_input(forecast_label, 1, 365, 48)
 
     # -----------------------------
-    # Forecast horizon (units depend on aggregation)
-    # -----------------------------
-    st.subheader("Forecast Horizon (units follow aggregation)")
-    if agg_choice == "Hourly":
-        forecast_steps = st.number_input("Forecast horizon (hours)", min_value=1, max_value=5000, value=48)
-    elif agg_choice == "Daily":
-        forecast_steps = st.number_input("Forecast horizon (days)", min_value=1, max_value=1500, value=14)
-    else:
-        forecast_steps = st.number_input("Forecast horizon (weeks)", min_value=1, max_value=520, value=12)
-
-    # Warn if training window is very large with high seasonal period
-    if len(df_train) > 20000 and seasonal_period > 168:
-        st.warning("Large training set and large seasonal period may take a long time to fit. Consider aggregating or reducing seasonal_period.")
-
-    # -----------------------------
-    # Run SARIMAX Forecast (only executes when user clicks)
+    # Run Forecast
     # -----------------------------
     if st.button("Run SARIMAX Forecast"):
-        with st.spinner("Fitting SARIMAX model — this may take a few seconds..."):
-
-            # Fit SARIMAX on training data
+        with st.spinner("Fitting SARIMAX model..."):
+            df_train = df_group_agg.copy()
             model = sm.tsa.statespace.SARIMAX(
-                df_train["kwh"].astype(float),
+                df_train["kwh"],
                 order=(p, d, q),
                 seasonal_order=(P, D, Q, seasonal_period),
                 trend="c",
@@ -1824,150 +1767,55 @@ def page_sarimax_forecasting():
             )
             results = model.fit(disp=False)
 
-            # Build full model (parameters fixed) for forecasting
-            model_full = sm.tsa.statespace.SARIMAX(
-                df_group_agg["kwh"].astype(float),
-                order=(p, d, q),
-                seasonal_order=(P, D, Q, seasonal_period),
-                trend="c",
-                enforce_stationarity=False,
-                enforce_invertibility=False
+            # Forecast
+            forecast_index = pd.date_range(
+                start=df_train.index[-1] + pd.Timedelta(1, unit=freq[0].lower()),
+                periods=forecast_horizon,
+                freq=freq[0].upper()
             )
-            results_full = model_full.filter(results.params)
-
-            # Use get_forecast(steps=...) which returns steps ahead predictions
-            forecast_obj = results_full.get_forecast(steps=int(forecast_steps))
-            forecast_mean = forecast_obj.predicted_mean
-            forecast_ci = forecast_obj.conf_int()
-
-            # Build forecast index — start at next period after last observed
-            last_observed = df_group_agg.index[-1]
-            # freq string to use for date_range
-            freq_map = {"Hourly": "H", "Daily": "D", "Weekly": "W"}
-            freq = freq_map.get(agg_choice, "D")
-
-            try:
-                # create offset using pandas offset (works with tz-aware timestamps)
-                offset = pd.tseries.frequencies.to_offset(freq)
-                start_forecast = last_observed + offset
-            except Exception:
-                # fallback: start next day
-                start_forecast = last_observed + pd.Timedelta(days=1)
-
-            forecast_index = pd.date_range(start=start_forecast, periods=len(forecast_mean), freq=freq, tz=df_group_agg.index.tz)
-
-            # assign safe indices
+            forecast_mean = results.get_forecast(steps=forecast_horizon).predicted_mean
+            forecast_ci = results.get_forecast(steps=forecast_horizon).conf_int()
             forecast_mean.index = forecast_index
             forecast_ci.index = forecast_index
 
         # -----------------------------
-        # Full plot (observed + forecast + CI)
+        # Plot full forecast
         # -----------------------------
-        st.subheader("Forecast Results (Full series)")
+        st.subheader("Forecast Results")
         fig = go.Figure()
-
-        fig.add_trace(go.Scatter(
-            x=df_group_agg.index,
-            y=df_group_agg["kwh"],
-            mode="lines",
-            name="Observed"
-        ))
-
-        fig.add_trace(go.Scatter(
-            x=forecast_mean.index,
-            y=forecast_mean,
-            mode="lines",
-            name="Forecast",
-            line=dict(dash="dash")
-        ))
-
-        # CI lower
-        fig.add_trace(go.Scatter(
-            x=forecast_ci.index,
-            y=forecast_ci.iloc[:, 0],
-            mode="lines",
-            line=dict(width=0),
-            showlegend=False
-        ))
-        # CI upper + fill
-        fig.add_trace(go.Scatter(
-            x=forecast_ci.index,
-            y=forecast_ci.iloc[:, 1],
-            mode="lines",
-            fill="tonexty",
-            name="Confidence interval",
-            line=dict(width=0)
-        ))
-
-        fig.update_layout(
-            title=f"SARIMAX Forecast for {title_label} – {selected_group} ({price_area})",
-            xaxis_title="Time",
-            yaxis_title="kWh",
-            height=600
-        )
-
+        fig.add_trace(go.Scatter(x=df_train.index, y=df_train["kwh"], mode="lines", name="Observed"))
+        fig.add_trace(go.Scatter(x=forecast_mean.index, y=forecast_mean, mode="lines", name="Forecast",
+                                 line=dict(dash="dash")))
+        fig.add_trace(go.Scatter(x=forecast_ci.index, y=forecast_ci.iloc[:, 0], fill=None, mode="lines",
+                                 line=dict(width=0), showlegend=False))
+        fig.add_trace(go.Scatter(x=forecast_ci.index, y=forecast_ci.iloc[:, 1], fill="tonexty", mode="lines",
+                                 line=dict(width=0), name="Confidence Interval"))
+        fig.update_layout(title=f"SARIMAX Forecast for {title_label} – {selected_group} ({price_area})",
+                          xaxis_title="Time", yaxis_title="kWh", height=600)
         st.plotly_chart(fig, use_container_width=True)
 
         # -----------------------------
-        # Zoomed-in plot (last training points + forecast)
+        # Zoomed-in plot (last 100 points)
         # -----------------------------
-        st.subheader("Zoomed Forecast (last training points + forecast)")
-
-        # choose how many historical points to show (use up to 100)
-        hist_points = min(100, len(df_train))
-        zoom_start = df_train.index[-hist_points]
-
+        st.subheader("Zoomed Forecast")
+        plot_start = df_train.index[-100:]
+        plot_end = forecast_mean.index[-1]
         fig_zoom = go.Figure()
-
-        # show observed from zoom_start to end of observed series
         fig_zoom.add_trace(go.Scatter(
-            x=df_group_agg.loc[zoom_start:].index,
-            y=df_group_agg.loc[zoom_start:, "kwh"],
-            mode="lines",
-            name="Observed"
+            x=df_train.loc[plot_start[0]:].index, y=df_train.loc[plot_start[0]:, "kwh"], mode="lines", name="Observed"
         ))
-
-        # forecast and CI on zoomed figure
         fig_zoom.add_trace(go.Scatter(
-            x=forecast_mean.index,
-            y=forecast_mean,
-            mode="lines",
-            name="Forecast",
-            line=dict(dash="dash")
+            x=forecast_mean.index, y=forecast_mean, mode="lines", name="Forecast", line=dict(dash="dash")
         ))
-
         fig_zoom.add_trace(go.Scatter(
-            x=forecast_ci.index,
-            y=forecast_ci.iloc[:, 0],
-            mode="lines",
-            line=dict(width=0),
-            showlegend=False
+            x=forecast_ci.index, y=forecast_ci.iloc[:, 0], fill=None, mode="lines", line=dict(width=0), showlegend=False
         ))
-
         fig_zoom.add_trace(go.Scatter(
-            x=forecast_ci.index,
-            y=forecast_ci.iloc[:, 1],
-            mode="lines",
-            fill="tonexty",
-            name="Confidence interval",
-            line=dict(width=0)
+            x=forecast_ci.index, y=forecast_ci.iloc[:, 1], fill="tonexty", mode="lines", line=dict(width=0), name="Confidence Interval"
         ))
-
-        fig_zoom.update_layout(
-            title=f"Zoomed Forecast for {selected_group} ({price_area})",
-            xaxis_title="Time",
-            yaxis_title="kWh",
-            height=500
-        )
-
+        fig_zoom.update_layout(title=f"Zoomed Forecast for {selected_group} ({price_area})",
+                               xaxis_title="Time", yaxis_title="kWh", height=500)
         st.plotly_chart(fig_zoom, use_container_width=True)
-
-        # -----------------------------
-        # Optional: show model diagnostics / summary (collapsed)
-        # -----------------------------
-        with st.expander("Model summary & diagnostics"):
-            st.text(results.summary().as_text())
-            # Residual diagnostics plot data can be added here if desired
 
 
 
