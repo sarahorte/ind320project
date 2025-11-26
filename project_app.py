@@ -729,50 +729,6 @@ def page_newA():
 
 
 # -----------------------------
-# Page: Weather Data table
-# -----------------------------
-def page_data_table():
-    st.title("Weather Data — January 2021 Overview")
-
-    selected_area = st.session_state.get("selected_area", "NO1") # Default to NO1 if not set
-    # Get the city corresponding to the selected area
-    city_name = df_price_areas.loc[df_price_areas['price_area'] == selected_area, 'city'].values[0]
-
-    st.write(
-    f"This table shows the minimum, maximum and mean values for each variable in January. "
-    f"The January (hourly) column contains the January time series for the selected area: {selected_area} ({city_name})."
-    )
-
-    
-    df_weather = load_weather_data(selected_area)
-    if df_weather.empty:
-        st.warning(f"No weather data for {selected_area}")
-        return
-
-    df_jan = df_weather[df_weather.index.month == 1]
-    series_rows = []
-    for col in df_weather.columns:
-        series_pd = df_jan[col]
-        series_rows.append({
-            "variable": col,
-            "mean": series_pd.mean().round(1),
-            "min": series_pd.min().round(1),
-            "max": series_pd.max().round(1),
-            "Jan": series_pd.tolist()
-        })
-
-    df_series = pd.DataFrame(series_rows).set_index("variable")
-   
-    column_config = {
-        "mean": st.column_config.NumberColumn(label="Mean", format="%.1f", width=None),
-        "min": st.column_config.NumberColumn(label="Min", format="%.1f", width=None),
-        "max": st.column_config.NumberColumn(label="Max", format="%.1f", width=None),
-        "Jan": st.column_config.LineChartColumn(label="January (hourly)", help="Hourly time series", width="large", y_min=None, y_max=None)
-    }
-
-    st.dataframe(df_series, column_config=column_config, use_container_width=True)
-
-# -----------------------------
 # Page: Interactive plots (Plotly version)
 # -----------------------------
 import plotly.graph_objects as go
@@ -1983,7 +1939,6 @@ def page_sarimax_forecasting():
 pg_home = st.Page(page_home, title="Home", icon="🏠")
 pg_energy = st.Page(page_energy, title="Energy Production", icon="⚙️")
 pg_newA = st.Page(page_newA, title="STL & Spectrogram", icon="🌀")
-pg_data = st.Page(page_data_table, title="Weather Data", icon="📋")
 pg_plots = st.Page(page_plots, title="Weather Plots", icon="📈")
 pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
 pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
@@ -1998,14 +1953,12 @@ nav = st.navigation(pages=[
     pg_home,
     pg_energy,
     pg_map,
+    pg_sarimax_forecasting,
     pg_newA,
-    pg_data,
     pg_plots,
     pg_newB,
-    pg_inspect,
     pg_snow,
-    pg_sliding_window,
-    pg_sarimax_forecasting
+    pg_sliding_window
 ])
 nav.run()
 
