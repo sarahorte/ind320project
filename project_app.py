@@ -1654,31 +1654,39 @@ def page_sarimax_forecasting():
     # ---------------------------------------------------------
     # Load data
     # ---------------------------------------------------------
-    @st.cache_data
-    def load_energy_cached(collection_name, price_area):
+    def load_energy_cached(collection_name: str, price_area: str):
+        """
+        Load and preprocess energy data from MongoDB, 
+        making the index timezone-aware (Europe/Oslo).
+        
+        Parameters:
+        - collection_name: "production" or "consumption"
+        - price_area: price area to filter by
+        
+        Returns:
+        - Preprocessed pandas DataFrame with tz-aware index
+        """
         if collection_name == "production":
-            col = production_collection
+            collection = production_collection
         else:
-            col = consumption_collection
+            collection = consumption_collection
 
-        df = pd.DataFrame(list(col.find({"pricearea": price_area})))
+        # Fetch data from MongoDB
+        df = pd.DataFrame(list(collection.find({"pricearea": price_area})))
         if df.empty:
-            return df
+            return pd.DataFrame()  # return empty if no data found
 
+        # Convert starttime to datetime
         df["starttime"] = pd.to_datetime(df["starttime"])
         df = df.sort_values("starttime")
-        df = df.set_index("starttime")
 
+        # Set tz-aware index (UTC → Europe/Oslo)
+        df = df.set_index("starttime")
         if df.index.tz is None:
             df.index = df.index.tz_localize("UTC")
         df.index = df.index.tz_convert("Europe/Oslo")
 
         return df
-
-    df_raw = load_energy_cached(data_type, price_area)
-    if df_raw.empty:
-        st.error("No data available for this price area.")
-        return
 
     # ---------------------------------------------------------
     # Select group (hydro, solar, thermal, cabin, etc.)
