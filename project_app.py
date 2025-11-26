@@ -1800,20 +1800,22 @@ def page_sarimax_forecasting():
             )
             results_full = model_full.filter(results.params)
 
-            # Integer-based forecasting
-            last_train_idx = df_group_agg.index.get_loc(df_train.index[-1])
-            end_idx = last_train_idx + forecast_steps
-
-            forecast_obj = results_full.get_prediction(
-                start=last_train_idx,
-                end=end_idx,
-                dynamic=True
-            )
-
+            # Use correct forecasting method: steps-based, no indices
+            forecast_obj = results_full.get_forecast(steps=forecast_steps)
             forecast_mean = forecast_obj.predicted_mean
             forecast_ci = forecast_obj.conf_int()
 
-            forecast_index = df_group_agg.index[last_train_idx:end_idx + 1]
+            # Assign proper time index
+            freq = df_group_agg.index.freq or df_group_agg.index.inferred_freq
+            if freq is None:
+                freq = "H" if agg_level == "Hourly" else "D" if agg_level == "Daily" else "W"
+
+            forecast_index = pd.date_range(
+                start=df_group_agg.index[-1] + pd.tseries.frequencies.to_offset(freq),
+                periods=forecast_steps,
+                freq=freq
+            )
+
             forecast_mean.index = forecast_index
             forecast_ci.index = forecast_index
 
@@ -1862,6 +1864,7 @@ def page_sarimax_forecasting():
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
 
 
 # -----------------------------
