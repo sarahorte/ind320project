@@ -1718,6 +1718,9 @@ def page_sarimax_forecasting():
     # Aggregate hourly sums
     df_group = df_group.groupby(df_group.index)[value_col].sum().rename("kwh").to_frame()
 
+    df_group_daily = df_group.resample("D").sum()
+
+
     # -----------------------------
     # Training Period Selection
     # -----------------------------
@@ -1737,7 +1740,7 @@ def page_sarimax_forecasting():
     end_timestamp = pd.Timestamp(end_date, tz="Europe/Oslo") + pd.Timedelta(hours=23, minutes=59, seconds=59)
 
     # Filter training data
-    df_train = df_group[(df_group.index >= start_timestamp) & (df_group.index <= end_timestamp)]
+    df_train = df_group_daily[(df_group_daily.index >= start_timestamp) & (df_group_daily.index <= end_timestamp)]
     if df_train.empty:
         st.error("Training window contains no data.")
         return
@@ -1805,7 +1808,7 @@ def page_sarimax_forecasting():
 
             # Full model for forecasting (parameters fixed)
             model_full = sm.tsa.statespace.SARIMAX(
-                df_group["kwh"],
+                df_group_daily["kwh"],
                 order=(p, d, q),
                 seasonal_order=(P, D, Q, seasonal_period),
                 trend="c",
@@ -1833,8 +1836,8 @@ def page_sarimax_forecasting():
 
         # Observed data
         fig.add_trace(go.Scatter(
-            x=df_group.index,
-            y=df_group["kwh"],
+            x=df_group_daily.index,
+            y=df_group_daily["kwh"],
             mode="lines",
             name="Observed"
         ))
@@ -1886,8 +1889,8 @@ def page_sarimax_forecasting():
 
         # Observed data (last 100 points)
         fig_zoom.add_trace(go.Scatter(
-            x=df_group.loc[plot_start[0]:plot_end].index,
-            y=df_group.loc[plot_start[0]:plot_end, "kwh"],
+            x=df_group_daily.loc[plot_start[0]:plot_end].index,
+            y=df_group_daily.loc[plot_start[0]:plot_end, "kwh"],
             mode="lines",
             name="Observed"
         ))
