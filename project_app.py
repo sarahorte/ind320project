@@ -1608,8 +1608,10 @@ import statsmodels.api as sm
 import plotly.graph_objects as go
 
 
+
+
 # -----------------------------------------------------------
-# STREAMLIT PAGE
+# Sarimax forecasting page
 # -----------------------------------------------------------
 def page_sarimax_forecasting():
 
@@ -1777,8 +1779,36 @@ def page_sarimax_forecasting():
 
     fig.add_trace(go.Scatter(
         x=df.index, y=df["kwh"],
-        mode="lines",
+        mode="lines", name="Observed", line=dict(color="black")
+    ))
 
+    fig.add_trace(go.Scatter(
+        x=forecast_mean.index, y=forecast_mean,
+        mode="lines", name="Forecast", line=dict(color="blue")
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=forecast_ci.index, y=forecast_ci.iloc[:, 0],
+        mode="lines", line=dict(width=0), showlegend=False
+    ))
+    fig.add_trace(go.Scatter(
+        x=forecast_ci.index, y=forecast_ci.iloc[:, 1],
+        fill="tonexty", fillcolor="rgba(0,0,255,0.15)",
+        mode="lines", line=dict(width=0), name="Confidence interval"
+    ))
+
+    fig.update_layout(
+        title=f"Forecast for {data_type}: {selected_group} ({selected_area})",
+        xaxis_title="Time",
+        yaxis_title="kWh",
+        template="simple_white"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Summary
+    st.subheader("Model Summary")
+    st.text(results.summary())
 
 
 
