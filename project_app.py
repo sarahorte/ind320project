@@ -1684,15 +1684,21 @@ def page_sarimax_forecasting():
     # -----------------------------
     st.subheader("Training Window")
 
-    min_date = df_group.index.min().date()
-    max_date = df_group.index.max().date()
+    # -----------------------------
+    # Training period (2021–2024 only)
+    # -----------------------------
+    st.subheader("Training Window")
+
+    allowed_start = date(2021, 1, 1)
+    allowed_end   = date(2024, 12, 31)
 
     train_start, train_end = st.date_input(
-        "Select training period",
-        value=[min_date, max_date.replace(year=max_date.year - 1)],
-        min_value=min_date,
-        max_value=max_date
+        "Select training period (2021–2024)",
+        value=[allowed_start, allowed_end],
+        min_value=allowed_start,
+        max_value=allowed_end
     )
+
 
     train_mask = (df_group.index.date >= train_start) & (df_group.index.date <= train_end)
     df_train = df_group[train_mask]
