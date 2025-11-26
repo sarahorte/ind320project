@@ -1700,14 +1700,14 @@ def page_sarimax_forecasting():
 
 
     # Convert time column to datetime
-    df_raw["starttime"] = pd.to_datetime(df_raw["starttime"])
-    df_raw = df_raw.sort_values("starttime")
+    #df_raw["starttime"] = pd.to_datetime(df_raw["starttime"])
+    #df_raw = df_raw.sort_values("starttime")
 
     # Make index tz-aware (UTC → Europe/Oslo)
-    df_raw = df_raw.set_index("starttime")
-    if df_raw.index.tz is None:
-        df_raw.index = df_raw.index.tz_localize("UTC")
-    df_raw.index = df_raw.index.tz_convert("Europe/Oslo")
+    #df_raw = df_raw.set_index("starttime")
+    #if df_raw.index.tz is None:
+    #    df_raw.index = df_raw.index.tz_localize("UTC")
+    #df_raw.index = df_raw.index.tz_convert("Europe/Oslo")
 
     # -----------------------------
     # Select Group (e.g., hydro, thermal, cabin, etc.)
