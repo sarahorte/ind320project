@@ -1281,7 +1281,7 @@ def inspect_snow_drift():
 
 
     overall_avg_tonnes = overall_avg / 1000
-    st.write(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
+
     
     # Compute the average directional breakdown (average over all seasons).
     avg_sectors = sd.compute_average_sector(df_weather)
