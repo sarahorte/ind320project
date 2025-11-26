@@ -1711,15 +1711,15 @@ def page_sarimax_forecasting():
     # -----------------------------
     freq = st.radio("Select frequency for modeling", ["Hourly", "Daily", "Weekly"])
     if freq == "Hourly":
-        df_group_agg = df_group_window.resample("H").mean()
+        df_group_agg = df_group_window[["kwh"]].resample("H").mean()
         forecast_label = "Forecast Horizon (hours)"
         seasonal_units = "hours"
     elif freq == "Daily":
-        df_group_agg = df_group_window.resample("D").mean()
+        df_group_agg = df_group_window[["kwh"]].resample("D").mean()
         forecast_label = "Forecast Horizon (days)"
         seasonal_units = "days"
     else:
-        df_group_agg = df_group_window.resample("W").mean()
+        df_group_agg = df_group_window[["kwh"]].resample("W").mean()
         forecast_label = "Forecast Horizon (weeks)"
         seasonal_units = "weeks"
 
