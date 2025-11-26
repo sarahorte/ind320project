@@ -1680,8 +1680,33 @@ def page_sarimax_forecasting():
     else:
         group_col = "groupname"
 
-    # All available groups
+    df_raw = load_energy_grouped(data_type, price_area)
+
+    # Safety check 1 — no data
+    if df_raw.empty or len(df_raw) == 0:
+        st.error(f"No data found for {data_type} in {price_area}.")
+        return
+
+    # Safety check 2 — required column missing
+    if group_col not in df_raw.columns:
+        st.error(
+            f"Expected subgroup column '{group_col}' not found.\n"
+            "Check your MongoDB field names."
+        )
+        st.write("Columns returned:", df_raw.columns.tolist())
+        return
+
+    # Safety check 3 — group column exists but has no values
+    if df_raw[group_col].dropna().empty:
+        st.error(
+            f"No subgroup values found in column '{group_col}'. "
+            f"Cannot list energy properties."
+        )
+        return
+
+    # Passed all checks → extract subgroup list
     groups = sorted(df_raw[group_col].unique())
+
     chosen_group = st.selectbox("Select energy property:", groups)
 
     # Filter to the chosen group
