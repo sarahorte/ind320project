@@ -1610,12 +1610,7 @@ def page_sliding_window_correlation():
         )
         st.plotly_chart(fig_raw, use_container_width=True)
 
-
-import streamlit as st
-import pandas as pd
-import numpy as np
-import statsmodels.api as sm
-import plotly.graph_objects as go
+# ---------------------------
 
 
 
@@ -1623,202 +1618,162 @@ import plotly.graph_objects as go
 # -----------------------------------------------------------
 # Sarimax forecasting page
 # -----------------------------------------------------------
+import streamlit as st
+import pandas as pd
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+
 def page_sarimax_forecasting():
 
     st.title("SARIMAX Forecasting – Energy Production & Consumption")
 
     st.write("""
-    Use this page to forecast hourly **energy production** (hydro, thermal, wind...)
-    or **energy consumption** (household, cabin, industrial...) using SARIMAX.
+    This tool allows you to forecast **any energy property** (production or consumption)
+    using a fully configurable SARIMAX model.
     """)
 
-    # ------------------------------------------------------------------
-    # USER CHOOSES PRODUCTION or CONSUMPTION
-    # ------------------------------------------------------------------
-    data_type = st.radio(
-        "Select data type:",
-        ["Production", "Consumption"],
-        horizontal=True,
-    )
+    # load energy data with grouping
+    @st.cache_data
+    def load_energy_grouped(collection_name: str, price_area: str):
+        """
+        Load raw production/consumption data and keep all groups separate.
+        """
+        if collection_name == "production":
+            collection = production_collection
+            group_col = "productiongroup"
+        else:
+            collection = consumption_collection
+            group_col = "groupname"
 
-    areas = ["NO1", "NO2", "NO3", "NO4", "NO5"]
-    selected_area = st.selectbox("Select Price Area:", areas, index=0)
+        df = pd.DataFrame(list(collection.find({"pricearea": price_area})))
+        if df.empty:
+            return pd.DataFrame()
 
-    # ------------------------------------------------------------------
-    # LOAD DATA
-    # ------------------------------------------------------------------
-    if data_type == "Production":
-        df = load_production("production")    # your Mongo loader
-        df = df[df["pricearea"] == selected_area]
+        df["starttime"] = pd.to_datetime(df["starttime"])
+        df = df.rename(columns={"quantitykwh": "kwh"})
 
-        groups = sorted(df["productiongroup"].unique())
+        # DST-safe conversion
+        df = df.set_index("starttime").sort_index()
+        if df.index.tz is None:
+            df.index = df.index.tz_localize("UTC")
+        df.index = df.index.tz_convert("Europe/Oslo")
+
+        return df  # NO aggregation here
+
+
+    # ------------------------------
+    # USER SELECTS SOURCE TYPE
+    # ------------------------------
+    data_type = st.selectbox("Select dataset:", ["production", "consumption"])
+
+    price_area = st.selectbox("Select price area:", ["NO1", "NO2", "NO3", "NO4", "NO5"])
+
+    df_raw = load_energy_grouped(data_type, price_area)
+
+    if df_raw.empty:
+        st.error("No data found for this price area.")
+        return
+
+    # Choose the correct grouping column
+    if data_type == "production":
         group_col = "productiongroup"
-
     else:
-        df = load_consumption("consumption")  # your Mongo loader
-        df = df[df["pricearea"] == selected_area]
-
-        groups = sorted(df["groupname"].unique())
         group_col = "groupname"
 
-    # ------------------------------------------------------------------
-    # USER SELECTS ENERGY GROUP
-    # ------------------------------------------------------------------
-    selected_group = st.selectbox(
-        f"Select {data_type.lower()} group:",
-        groups
-    )
+    # All available groups
+    groups = sorted(df_raw[group_col].unique())
+    chosen_group = st.selectbox("Select energy property:", groups)
 
-    # Filter by group
-    df = df[df[group_col] == selected_group]
-
-    # Keep only time and kwh
-    df = df.rename(columns={"starttime": "time", "quantitykwh": "kwh"})
-    df = df[["time", "kwh"]].sort_values("time")
-    df = df.set_index("time")
-
-    # Ensure timezone neutrality
-    df.index = df.index.tz_localize(None)
-
-    # Limit to valid period
-    df = df.loc["2021-01-01":"2024-12-31"]
+    # Filter to the chosen group
+    df = df_raw[df_raw[group_col] == chosen_group][["kwh"]].copy()
 
     if df.empty:
-        st.error("No data available for this selection.")
+        st.error("No data available for this subgroup.")
         return
 
-    # ------------------------------------------------------------------
-    # TRAINING WINDOW SELECTION
-    # ------------------------------------------------------------------
-    st.subheader("Training Setup")
+    st.subheader("Preview")
+    st.dataframe(df.head())
 
-    min_date = df.index.min().date()
-    max_date = df.index.max().date()
+    # ------------------------------
+    # TRAINING / FORECAST SETTINGS
+    # ------------------------------
+    st.header("Model Settings")
 
-    train_start = st.date_input("Training start", min_date)
-    train_end = st.date_input("Training end", max_date)
+    start_date = st.date_input("Training start date", value=df.index[0].date())
+    end_date = st.date_input("Training end date", value=df.index[-1].date())
 
-    train_start = pd.Timestamp(train_start)
-    train_end = pd.Timestamp(train_end)
+    df_train = df.loc[str(start_date):str(end_date)]
 
-    df_train = df.loc[train_start:train_end]
+    forecast_hours = st.slider("Forecast horizon (hours)", 1, 168, 24)
 
-    if len(df_train) < 48:
-        st.error("Training data is too short (<48 hours). Choose a longer interval.")
-        return
+    st.subheader("SARIMAX parameters")
 
-    # ------------------------------------------------------------------
-    # SARIMAX PARAMETERS
-    # ------------------------------------------------------------------
-    st.subheader("SARIMA Model Parameters")
+    p = st.number_input("AR (p)", min_value=0, max_value=5, value=1)
+    d = st.number_input("Difference (d)", min_value=0, max_value=2, value=1)
+    q = st.number_input("MA (q)", min_value=0, max_value=5, value=1)
 
-    col1, col2, col3 = st.columns(3)
-    p = col1.number_input("p (AR)", 0, 5, 1)
-    d = col2.number_input("d (Diff)", 0, 2, 1)
-    q = col3.number_input("q (MA)", 0, 5, 1)
+    P = st.number_input("Seasonal AR (P)", min_value=0, max_value=5, value=1)
+    D = st.number_input("Seasonal Diff (D)", min_value=0, max_value=2, value=1)
+    Q = st.number_input("Seasonal MA (Q)", min_value=0, max_value=5, value=1)
+    s = st.number_input("Seasonal period", min_value=1, max_value=168, value=24)
 
-    col4, col5, col6 = st.columns(3)
-    P = col4.number_input("P (Seasonal AR)", 0, 3, 1)
-    D = col5.number_input("D (Seasonal Diff)", 0, 2, 1)
-    Q = col6.number_input("Q (Seasonal MA)", 0, 3, 1)
+    dynamic_start = st.date_input("Dynamic forecast start date", value=df_train.index[int(len(df_train)*0.8)].date())
 
-    seasonal_period = st.number_input("Seasonal period (24=hourly daily cycle)", 1, 168, 24)
+    if st.button("Run Forecast"):
 
-    # ------------------------------------------------------------------
-    # FORECAST HORIZON
-    # ------------------------------------------------------------------
-    forecast_horizon = st.slider("Forecast horizon (hours)", 24, 240, 72)
-
-    dynamic_forecasting = st.checkbox(
-        "Dynamic forecasting (predictions feed into next predictions)",
-        True
-    )
-
-    # ------------------------------------------------------------------
-    # FIT MODEL
-    # ------------------------------------------------------------------
-    st.subheader("Fit Model")
-
-    try:
+        # ------------------------------
+        # FIT MODEL ON TRAINING DATA
+        # ------------------------------
         model = sm.tsa.statespace.SARIMAX(
             df_train["kwh"],
-            order=(p, d, q),
-            seasonal_order=(P, D, Q, seasonal_period),
             trend="c",
+            order=(p, d, q),
+            seasonal_order=(P, D, Q, s),
             enforce_stationarity=False,
-            enforce_invertibility=False,
+            enforce_invertibility=False
         )
+
         results = model.fit(disp=False)
-        st.success("Model fitted successfully.")
-    except Exception as e:
-        st.error(f"Model error: {e}")
-        return
 
-    # ------------------------------------------------------------------
-    # FORECAST
-    # ------------------------------------------------------------------
-    st.subheader("Forecast")
+        # ------------------------------
+        # IN-SAMPLE ONE-STEP FORECAST
+        # ------------------------------
+        pred = results.get_prediction()
+        pred_ci = pred.conf_int()
 
-    forecast_index = pd.date_range(
-        df_train.index[-1] + pd.Timedelta(hours=1),
-        periods=forecast_horizon,
-        freq="H"
-    )
+        # ------------------------------
+        # DYNAMIC FORECAST
+        # ------------------------------
+        dyn = results.get_prediction(dynamic=str(dynamic_start))
+        dyn_ci = dyn.conf_int()
 
-    if dynamic_forecasting:
-        forecast = results.get_forecast(forecast_horizon)
-    else:
-        forecast = results.get_prediction(
-            start=df_train.index[0],
-            end=df_train.index[-1] + pd.Timedelta(hours=forecast_horizon),
-            dynamic=False
-        )
+        # ------------------------------
+        # FUTURE FORECAST
+        # ------------------------------
+        future = results.get_forecast(steps=forecast_hours)
+        future_ci = future.conf_int()
 
-    forecast_mean = forecast.predicted_mean
-    forecast_ci = forecast.conf_int()
+        # ------------------------------
+        # PLOT RESULTS
+        # ------------------------------
+        fig, ax = plt.subplots(figsize=(12,5))
 
-    # Align dynamic index
-    if dynamic_forecasting:
-        forecast_mean.index = forecast_index
-        forecast_ci.index = forecast_index
+        ax.plot(df.index, df["kwh"], label="Observed", color="black")
 
-    # ------------------------------------------------------------------
-    # PLOT
-    # ------------------------------------------------------------------
-    fig = go.Figure()
+        pred.predicted_mean.plot(ax=ax, style="r--", label="One-step")
+        ax.fill_between(pred_ci.index, pred_ci.iloc[:,0], pred_ci.iloc[:,1], alpha=0.1, color="red")
 
-    fig.add_trace(go.Scatter(
-        x=df.index, y=df["kwh"],
-        mode="lines", name="Observed", line=dict(color="black")
-    ))
+        dyn.predicted_mean.plot(ax=ax, style="g", label="Dynamic")
+        ax.fill_between(dyn_ci.index, dyn_ci.iloc[:,0], dyn_ci.iloc[:,1], alpha=0.1, color="green")
 
-    fig.add_trace(go.Scatter(
-        x=forecast_mean.index, y=forecast_mean,
-        mode="lines", name="Forecast", line=dict(color="blue")
-    ))
+        future.predicted_mean.plot(ax=ax, style="b", label="Future forecast")
+        ax.fill_between(future_ci.index, future_ci.iloc[:,0], future_ci.iloc[:,1], alpha=0.2, color="blue")
 
-    fig.add_trace(go.Scatter(
-        x=forecast_ci.index, y=forecast_ci.iloc[:, 0],
-        mode="lines", line=dict(width=0), showlegend=False
-    ))
-    fig.add_trace(go.Scatter(
-        x=forecast_ci.index, y=forecast_ci.iloc[:, 1],
-        fill="tonexty", fillcolor="rgba(0,0,255,0.15)",
-        mode="lines", line=dict(width=0), name="Confidence interval"
-    ))
+        ax.legend()
+        ax.set_title(f"SARIMAX Forecast – {data_type} ({chosen_group}) in {price_area}")
+        ax.set_ylabel("kWh")
 
-    fig.update_layout(
-        title=f"Forecast for {data_type}: {selected_group} ({selected_area})",
-        xaxis_title="Time",
-        yaxis_title="kWh",
-        template="simple_white"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Summary
-    st.subheader("Model Summary")
-    st.text(results.summary())
+        st.pyplot(fig)
 
 
 
