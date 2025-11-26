@@ -10,8 +10,32 @@ from pymongo.mongo_client import MongoClient
 import openmeteo_requests
 import requests_cache
 from retry_requests import retry
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from sklearn.neighbors import LocalOutlierFactor
+import numpy as np
+import pandas as pd
+from scipy.fftpack import dct, idct
+import plotly.graph_objects as go
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from statsmodels.tsa.seasonal import STL
 
-#from analysis import spc_outlier_plotly, lof_precipitation_plotly, matplotlib_spectrogram, stl_decomposition_plotly_subplots
+import numpy as np
+import pandas as pd
+from scipy.signal import stft
+import plotly.graph_objects as go
+
+import folium
+from streamlit_folium import st_folium
+import json
+import pandas as pd
+from shapely.geometry import shape, Point
+from datetime import datetime
+import datetime as dt
+
+
 # -----------------------------
 # Part 2: MongoDB connection
 # -----------------------------
@@ -33,8 +57,6 @@ consumption_collection = db["consumption_data"]
 # -----------------------------
 # ERA5 API fetch function
 # -----------------------------
-
-
 cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
 retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
 openmeteo = openmeteo_requests.Client(session=retry_session)
@@ -104,18 +126,7 @@ MONTH_NAMES = {i: pd.Timestamp(2020, i, 1).strftime("%b") for i in range(1,13)}
 # -----------------------------
 # Functions for outlier detection and plotting. Copied from notebook CA3.ipynb
 # -----------------------------
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
-from sklearn.neighbors import LocalOutlierFactor
 
-
-
-# --- Cell: SPC outlier detection (DCT SATV) + Plotly plotting ---
-import numpy as np
-import pandas as pd
-from scipy.fftpack import dct, idct
-import plotly.graph_objects as go
 
 # --- DCT-based seasonal decomposition and SATV calculation ---
 def dct_seasonal_and_satv(series: pd.Series, cutoff_frac: float = 0.05):
@@ -285,10 +296,7 @@ def lof_precipitation_plotly(precip_series: pd.Series, contamination: float = 0.
     return fig, summary
 
 
-
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from statsmodels.tsa.seasonal import STL
+# --- STL decomposition with Plotly subplots ---
 
 def stl_decomposition_plotly_subplots(
     df,
@@ -345,13 +353,7 @@ def stl_decomposition_plotly_subplots(
     return fig, res
 
 
-
-
-import numpy as np
-import pandas as pd
-from scipy.signal import stft
-import plotly.graph_objects as go
-
+# --- Spectrogram computation and Plotly plotting ---
 def plotly_spectrogram(
     df,
     price_area='NO1',
@@ -428,13 +430,14 @@ def plotly_spectrogram(
 
 
 
-
 # -----------------------------
 # Page: Home
 # -----------------------------
 def page_home():
     st.title("Home")
     st.write("Welcome to the app! Use the sidebar to navigate.")
+
+
 
 # -----------------------------
 # Page: Energy Production (old page 4)
@@ -729,7 +732,6 @@ def page_newA():
 
 
 
-
 # -----------------------------
 # Page: Interactive plots (Plotly version)
 # -----------------------------
@@ -817,7 +819,7 @@ def page_plots():
     st.plotly_chart(fig, use_container_width=True)
 
 
-
+    # -----------------------------
     st.title("Weather Data — January 2021 Overview")
 
     selected_area = st.session_state.get("selected_area", "NO1") # Default to NO1 if not set
@@ -857,7 +859,6 @@ def page_plots():
     }
 
     st.dataframe(df_series, column_config=column_config, use_container_width=True)
-
 
 
 
@@ -937,13 +938,6 @@ def page_newB():
 # Page: Price Areas Map
 # -----------------------------
 def page_map():
-    import folium
-    from streamlit_folium import st_folium
-    import json
-    import pandas as pd
-    from shapely.geometry import shape, Point
-    from datetime import datetime
-    import datetime as dt
 
     st.title("Price Areas Map")
 
