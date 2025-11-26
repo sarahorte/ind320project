@@ -1302,12 +1302,6 @@ def inspect_snow_drift():
     # Convert Qt to tonnes/m for readability
     monthly_df['Qt (tonnes/m)'] = monthly_df['Qt (kg/m)'] / 1000
 
-    # Display monthly results
-    st.write("Monthly snow drift (Qt) results (in tonnes/m):")
-    st.dataframe(monthly_df[['season', 'month', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
-
-
-
     # -----------------------------
     # 1. Ensure monthly timestamps
     # -----------------------------
