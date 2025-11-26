@@ -1812,14 +1812,25 @@ def page_sarimax_forecasting():
 
             last_train_time = df_train_agg.index[-1]
 
+            # Find the location of the last training point in the aggregated dataset
+            last_idx = df_group_agg.index.get_loc(last_train_time)
+
+            # Compute the end index in integer form
+            end_idx = last_idx + forecast_steps
+
             forecast_obj = results_full.get_prediction(
-                start=last_train_time,
-                end=last_train_time + forecast_steps,
+                start=last_idx,
+                end=end_idx,
                 dynamic=True
             )
 
             forecast_mean = forecast_obj.predicted_mean
             forecast_ci = forecast_obj.conf_int()
+
+            # Convert forecast index to timestamps
+            forecast_mean.index = df_group_agg.index[last_idx:end_idx+1]
+            forecast_ci.index = df_group_agg.index[last_idx:end_idx+1]
+
 
         # -----------------------------
         # MAIN PLOT
