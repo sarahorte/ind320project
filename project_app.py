@@ -6,12 +6,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
 from datetime import date
+from pymongo.mongo_client import MongoClient
+import openmeteo_requests
+import requests_cache
+from retry_requests import retry
 
 #from analysis import spc_outlier_plotly, lof_precipitation_plotly, matplotlib_spectrogram, stl_decomposition_plotly_subplots
 # -----------------------------
 # Part 2: MongoDB connection
 # -----------------------------
-from pymongo.mongo_client import MongoClient
+
 
 user = st.secrets["mongodb"]["user"]
 pwd = st.secrets["mongodb"]["password"]
@@ -29,9 +33,7 @@ consumption_collection = db["consumption_data"]
 # -----------------------------
 # ERA5 API fetch function
 # -----------------------------
-import openmeteo_requests
-import requests_cache
-from retry_requests import retry
+
 
 cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
 retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
@@ -1956,8 +1958,8 @@ nav = st.navigation(pages=[
     pg_sarimax_forecasting,
     pg_newA,
     pg_plots,
-    pg_newB,
     pg_snow,
+    pg_newB,
     pg_sliding_window
 ])
 nav.run()
