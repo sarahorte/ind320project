@@ -1955,8 +1955,8 @@ pg_sarimax_forecasting = st.Page(page_sarimax_forecasting, title="SARIMAX Foreca
 nav = st.navigation(pages=[
     pg_home,
     pg_energy,
-    pg_newA,
     pg_map,
+    pg_newA,
     pg_data,
     pg_plots,
     pg_newB,
