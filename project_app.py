@@ -1682,23 +1682,30 @@ def page_sarimax_forecasting():
     df_group.index = df_group.index.tz_convert("Europe/Oslo")
 
     # -----------------------------
-    # Training period (2021–2024 only)
+    # Training period selection
     # -----------------------------
-    st.subheader("Training Window")
+    st.subheader("Select Training Period")
 
-    allowed_start = date(2021, 1, 1)
-    allowed_end   = date(2024, 12, 31)
+    # Define allowed min/max
+    min_date = pd.Timestamp("2021-01-01")
+    max_date = pd.Timestamp("2024-12-31")
 
-    train_start, train_end = st.date_input(
-        "Select training period (2021–2024)",
-        value=[allowed_start, allowed_end],
-        min_value=allowed_start,
-        max_value=allowed_end
-    )
+    # User selects start and end dates within the allowed range
+    start_date = st.date_input("Start date", min_value=min_date.date(), max_value=max_date.date(), value=min_date.date())
+    end_date = st.date_input("End date", min_value=min_date.date(), max_value=max_date.date(), value=max_date.date())
 
+    # Ensure start <= end
+    if start_date > end_date:
+        st.error("Start date must be before or equal to end date.")
+        st.stop()
 
-    train_mask = (df_group.index.date >= train_start) & (df_group.index.date <= train_end)
-    df_train = df_group[train_mask]
+    # Convert to timestamps
+    start_timestamp = pd.Timestamp(start_date)
+    end_timestamp = pd.Timestamp(end_date) + pd.Timedelta(hours=23, minutes=59, seconds=59)  # Include full last day
+
+    # Filter data
+    df_train = df_raw[(df_raw.index >= start_timestamp) & (df_raw.index <= end_timestamp)]
+
 
     if df_train.empty:
         st.error("Training window contains no data.")
