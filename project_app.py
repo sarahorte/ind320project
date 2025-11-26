@@ -1601,6 +1601,186 @@ def page_sliding_window_correlation():
         st.plotly_chart(fig_raw, use_container_width=True)
 
 
+import streamlit as st
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+import plotly.graph_objects as go
+
+
+# -----------------------------------------------------------
+# STREAMLIT PAGE
+# -----------------------------------------------------------
+def page_sarimax_forecasting():
+
+    st.title("SARIMAX Forecasting – Energy Production & Consumption")
+
+    st.write("""
+    Use this page to forecast hourly **energy production** (hydro, thermal, wind...)
+    or **energy consumption** (household, cabin, industrial...) using SARIMAX.
+    """)
+
+    # ------------------------------------------------------------------
+    # USER CHOOSES PRODUCTION or CONSUMPTION
+    # ------------------------------------------------------------------
+    data_type = st.radio(
+        "Select data type:",
+        ["Production", "Consumption"],
+        horizontal=True,
+    )
+
+    areas = ["NO1", "NO2", "NO3", "NO4", "NO5"]
+    selected_area = st.selectbox("Select Price Area:", areas, index=0)
+
+    # ------------------------------------------------------------------
+    # LOAD DATA
+    # ------------------------------------------------------------------
+    if data_type == "Production":
+        df = load_production("production")    # your Mongo loader
+        df = df[df["pricearea"] == selected_area]
+
+        groups = sorted(df["productiongroup"].unique())
+        group_col = "productiongroup"
+
+    else:
+        df = load_consumption("consumption")  # your Mongo loader
+        df = df[df["pricearea"] == selected_area]
+
+        groups = sorted(df["groupname"].unique())
+        group_col = "groupname"
+
+    # ------------------------------------------------------------------
+    # USER SELECTS ENERGY GROUP
+    # ------------------------------------------------------------------
+    selected_group = st.selectbox(
+        f"Select {data_type.lower()} group:",
+        groups
+    )
+
+    # Filter by group
+    df = df[df[group_col] == selected_group]
+
+    # Keep only time and kwh
+    df = df.rename(columns={"starttime": "time", "quantitykwh": "kwh"})
+    df = df[["time", "kwh"]].sort_values("time")
+    df = df.set_index("time")
+
+    # Ensure timezone neutrality
+    df.index = df.index.tz_localize(None)
+
+    # Limit to valid period
+    df = df.loc["2021-01-01":"2024-12-31"]
+
+    if df.empty:
+        st.error("No data available for this selection.")
+        return
+
+    # ------------------------------------------------------------------
+    # TRAINING WINDOW SELECTION
+    # ------------------------------------------------------------------
+    st.subheader("Training Setup")
+
+    min_date = df.index.min().date()
+    max_date = df.index.max().date()
+
+    train_start = st.date_input("Training start", min_date)
+    train_end = st.date_input("Training end", max_date)
+
+    train_start = pd.Timestamp(train_start)
+    train_end = pd.Timestamp(train_end)
+
+    df_train = df.loc[train_start:train_end]
+
+    if len(df_train) < 48:
+        st.error("Training data is too short (<48 hours). Choose a longer interval.")
+        return
+
+    # ------------------------------------------------------------------
+    # SARIMAX PARAMETERS
+    # ------------------------------------------------------------------
+    st.subheader("SARIMA Model Parameters")
+
+    col1, col2, col3 = st.columns(3)
+    p = col1.number_input("p (AR)", 0, 5, 1)
+    d = col2.number_input("d (Diff)", 0, 2, 1)
+    q = col3.number_input("q (MA)", 0, 5, 1)
+
+    col4, col5, col6 = st.columns(3)
+    P = col4.number_input("P (Seasonal AR)", 0, 3, 1)
+    D = col5.number_input("D (Seasonal Diff)", 0, 2, 1)
+    Q = col6.number_input("Q (Seasonal MA)", 0, 3, 1)
+
+    seasonal_period = st.number_input("Seasonal period (24=hourly daily cycle)", 1, 168, 24)
+
+    # ------------------------------------------------------------------
+    # FORECAST HORIZON
+    # ------------------------------------------------------------------
+    forecast_horizon = st.slider("Forecast horizon (hours)", 24, 240, 72)
+
+    dynamic_forecasting = st.checkbox(
+        "Dynamic forecasting (predictions feed into next predictions)",
+        True
+    )
+
+    # ------------------------------------------------------------------
+    # FIT MODEL
+    # ------------------------------------------------------------------
+    st.subheader("Fit Model")
+
+    try:
+        model = sm.tsa.statespace.SARIMAX(
+            df_train["kwh"],
+            order=(p, d, q),
+            seasonal_order=(P, D, Q, seasonal_period),
+            trend="c",
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+        )
+        results = model.fit(disp=False)
+        st.success("Model fitted successfully.")
+    except Exception as e:
+        st.error(f"Model error: {e}")
+        return
+
+    # ------------------------------------------------------------------
+    # FORECAST
+    # ------------------------------------------------------------------
+    st.subheader("Forecast")
+
+    forecast_index = pd.date_range(
+        df_train.index[-1] + pd.Timedelta(hours=1),
+        periods=forecast_horizon,
+        freq="H"
+    )
+
+    if dynamic_forecasting:
+        forecast = results.get_forecast(forecast_horizon)
+    else:
+        forecast = results.get_prediction(
+            start=df_train.index[0],
+            end=df_train.index[-1] + pd.Timedelta(hours=forecast_horizon),
+            dynamic=False
+        )
+
+    forecast_mean = forecast.predicted_mean
+    forecast_ci = forecast.conf_int()
+
+    # Align dynamic index
+    if dynamic_forecasting:
+        forecast_mean.index = forecast_index
+        forecast_ci.index = forecast_index
+
+    # ------------------------------------------------------------------
+    # PLOT
+    # ------------------------------------------------------------------
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df["kwh"],
+        mode="lines",
+
+
+
 
 
 # -----------------------------
@@ -1618,6 +1798,7 @@ pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
 pg_inspect = st.Page(inspect_mongo, title="Inspect MongoDB", icon="🔍")
 pg_snow = st.Page(inspect_snow_drift, title="Snow Drift", icon="❄️")
 pg_sliding_window = st.Page(page_sliding_window_correlation, title="Sliding Window Correlation", icon="🔄")
+pg_sarimax_forecasting = st.Page(page_sarimax_forecasting, title="SARIMAX Forecasting", icon="📊")
 
 nav = st.navigation(pages=[
     pg_home,
@@ -1629,7 +1810,8 @@ nav = st.navigation(pages=[
     pg_map,
     pg_inspect,
     pg_snow,
-    pg_sliding_window
+    pg_sliding_window,
+    pg_sarimax_forecasting
 ])
 nav.run()
 
