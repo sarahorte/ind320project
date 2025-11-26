@@ -1927,6 +1927,8 @@ def page_sarimax_forecasting():
         )
 
         st.plotly_chart(fig_zoom, use_container_width=True)
+        #nice
+
 
 
 
