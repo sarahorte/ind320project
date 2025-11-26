@@ -1688,8 +1688,6 @@ def page_sarimax_forecasting():
         return df
 
 
-    # Instead of fetching directly
-    # df_raw = pd.DataFrame(list(collection.find({"pricearea": price_area})))
 
     # Use cached version
     df_raw = load_energy_cached(data_type, price_area)
@@ -1699,15 +1697,6 @@ def page_sarimax_forecasting():
         return
 
 
-    # Convert time column to datetime
-    #df_raw["starttime"] = pd.to_datetime(df_raw["starttime"])
-    #df_raw = df_raw.sort_values("starttime")
-
-    # Make index tz-aware (UTC → Europe/Oslo)
-    #df_raw = df_raw.set_index("starttime")
-    #if df_raw.index.tz is None:
-    #    df_raw.index = df_raw.index.tz_localize("UTC")
-    #df_raw.index = df_raw.index.tz_convert("Europe/Oslo")
 
     # -----------------------------
     # Select Group (e.g., hydro, thermal, cabin, etc.)
