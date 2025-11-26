@@ -35,7 +35,8 @@ from shapely.geometry import shape, Point
 from datetime import datetime
 import datetime as dt
 
-
+import Snow_drift as sd
+from datetime import datetime
 # -----------------------------
 # Part 2: MongoDB connection
 # -----------------------------
@@ -1171,7 +1172,6 @@ def page_map():
         # make the map a bit more zoomed out to see context
         m.fit_bounds(m.get_bounds(), padding=(15, 15))
 
-
         # Update map click
         out = st_folium(m, key="choropleth_map", height=600)
 
@@ -1204,71 +1204,11 @@ def page_map():
 
 
 
-
-
-# -----------------------------
-import streamlit as st
-import pandas as pd
-
-def inspect_mongo():
-    st.header("MongoDB Data Inspection")
-
-    st.subheader("Production Data – Sample")
-    prod_sample = list(production_collection.find().limit(5))
-    st.json(prod_sample)
-
-    st.subheader("Production Columns")
-    if prod_sample:
-        prod_df = pd.DataFrame(prod_sample)
-        st.write(prod_df.columns.tolist())
-        st.dataframe(prod_df)
-
-    st.divider()
-
-    st.subheader("Consumption Data – Sample")
-    cons_sample = list(consumption_collection.find().limit(5))
-    st.json(cons_sample)
-
-    st.subheader("Consumption Columns")
-    if cons_sample:
-        cons_df = pd.DataFrame(cons_sample)
-        st.write(cons_df.columns.tolist())
-        st.dataframe(cons_df)
-
-    st.divider()
-
-    # Print the different consumption groups.
-    st.subheader("Distinct groupName values in Consumption Data")
-    cons_groups = cons_df['groupname'].unique().tolist()
-    st.write(cons_groups)
-
-    # same for production groups
-    st.subheader("Distinct productiongroup values in Production Data")
-    prod_groups = prod_df['productiongroup'].unique().tolist()
-    st.write(prod_groups)
-
-    st.write("Record counts:")
-    st.write("Production:", production_collection.count_documents({}))
-    st.write("Consumption:", consumption_collection.count_documents({}))
-
-    # What values does groupName take in consumption data and production data?
-    st.subheader("Distinct groupName values in Consumption Data")
-    cons_groups = consumption_collection.distinct("groupName")
-    st.write(cons_groups)
-
-    st.subheader("Distinct groupName values in Production Data")
-    prod_groups = production_collection.distinct("groupName")
-    st.write(prod_groups)
-
-
-
 # -----------------------------
 # Snow Drift Inspection Page
 # -----------------------------
-import Snow_drift as sd
 
 def inspect_snow_drift():
-    from datetime import datetime
     st.header("Snow Drift Analysis")
 
     # Check map selection
@@ -1323,21 +1263,12 @@ def inspect_snow_drift():
     df_weather['time'] = pd.to_datetime(df_weather['time'])
 
     df_weather['month'] = df_weather['time'].dt.month
-    # show df_weather months for debugging
-    st.write(df_weather[['time', 'month']])
     
     # Define season: if month >= 7, season = current year; otherwise, season = previous year.
     # Only rows from July onward get the season year
     df_weather['season'] = df_weather['time'].apply(lambda dt: dt.year if dt.month >= 7 else dt.year - 1)
     
-    #OBS Show df_weather['season'] for debugging. the whole thing
-    st.write(df_weather[['time', 'season']])
 
-    # Riktig fram til hit.
-
-
-
-        
     # Compute seasonal results (yearly averages for each season).
     yearly_df = sd.compute_yearly_results(df_weather, T, F, theta)
     overall_avg = yearly_df['Qt (kg/m)'].mean()
@@ -1349,7 +1280,6 @@ def inspect_snow_drift():
     st.dataframe(yearly_df_disp[['season', 'Qt (tonnes/m)']].style.format({"Qt (tonnes/m)": "{:.1f}"}))
 
 
-
     overall_avg_tonnes = overall_avg / 1000
     st.write(f"\nOverall average Qt over all seasons: {overall_avg_tonnes:.1f} tonnes/m")
     
@@ -1359,7 +1289,6 @@ def inspect_snow_drift():
     # Create the rose plot canvas with the average directional breakdown in streamlit
     fig = sd.plot_rose(avg_sectors, overall_avg)
     st.pyplot(fig)
-
 
 
     # -----------------------------
