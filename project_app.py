@@ -447,7 +447,7 @@ def page_home():
     st.title("Home")
     st.write("Welcome to the app! Use the sidebar to navigate.")
 
-    st.image("Picture.jpg", caption="Local Image")
+    st.image("Picture.jpg", caption="UGreen. “Hydro Energy Overview – Infographic.”")
 
 
 # -----------------------------
