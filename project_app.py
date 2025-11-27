@@ -37,6 +37,19 @@ import datetime as dt
 
 import Snow_drift as sd
 from datetime import datetime
+import plotly.express as px
+
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+import statsmodels.api as sm
+
+
+
 # -----------------------------
 # Part 2: MongoDB connection
 # -----------------------------
@@ -1341,8 +1354,6 @@ def inspect_snow_drift():
 
     seasonal_df = pd.DataFrame(seasonal_expanded)
 
-
-
     # -----------------------------
     # 3. Combine monthly + seasonal
     # -----------------------------
@@ -1350,10 +1361,6 @@ def inspect_snow_drift():
     plot_df.sort_values("month_dt", inplace=True)
     plot_df.reset_index(drop=True, inplace=True)
 
-
-
-
-    import plotly.express as px
 
     # --- Add Month-Year labels ---
     plot_df["month_label"] = plot_df["month_dt"].dt.strftime("%b %Y")
@@ -1410,9 +1417,6 @@ def inspect_snow_drift():
 # -----------------------------
 # Page: Sliding Window Correlation
 # -----------------------------
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
 
 def page_sliding_window_correlation():
     st.header("📈 Sliding Window Correlation: Weather vs Energy")
@@ -1443,7 +1447,6 @@ def page_sliding_window_correlation():
         df.index = df.index.tz_convert("Europe/Oslo")  # convert to local Norwegian time
 
         return df
-
 
 
     # -----------------------------
@@ -1535,10 +1538,6 @@ def page_sliding_window_correlation():
 # -----------------------------
 # PAGE: SARIMAX Forecasting
 # -----------------------------
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-import statsmodels.api as sm
 
 def page_sarimax_forecasting():
     st.title("SARIMAX Forecasting of energy production and consumption")
@@ -1861,8 +1860,6 @@ pg_newA = st.Page(page_newA, title="STL & Spectrogram", icon="🌀")
 pg_plots = st.Page(page_plots, title="Weather Plots", icon="📈")
 pg_newB = st.Page(page_newB, title="Outlier & Anomaly", icon="🚨")
 pg_map = st.Page(page_map, title="Price Areas Map", icon="🗺️")
-
-
 pg_snow = st.Page(inspect_snow_drift, title="Snow Drift", icon="❄️")
 pg_sliding_window = st.Page(page_sliding_window_correlation, title="Sliding Window Correlation", icon="🔄")
 pg_sarimax_forecasting = st.Page(page_sarimax_forecasting, title="SARIMAX Forecasting", icon="📊")
