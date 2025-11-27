@@ -1,53 +1,49 @@
+# Imports
+
+# Standard library
 from secrets import choice
 from typing import Callable, List, Tuple
-import streamlit as st
+from datetime import date, datetime
+import datetime as dt
+import json
+
+# Data handling
 import pandas as pd
 import numpy as np
+
+# Visualization
 import matplotlib.pyplot as plt
 import plotly.express as px
-from datetime import date
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+# Streamlit
+import streamlit as st
+from streamlit_folium import st_folium
+
+# Mapping / Geo
+import folium
+from shapely.geometry import shape, Point
+
+# MongoDB
 from pymongo.mongo_client import MongoClient
+
+# Weather / API Request Tools
 import openmeteo_requests
 import requests_cache
 from retry_requests import retry
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
+
+# Stats / ML
 from sklearn.neighbors import LocalOutlierFactor
-import numpy as np
-import pandas as pd
-from scipy.fftpack import dct, idct
-import plotly.graph_objects as go
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from statsmodels.tsa.seasonal import STL
-
-import numpy as np
-import pandas as pd
-from scipy.signal import stft
-import plotly.graph_objects as go
-
-import folium
-from streamlit_folium import st_folium
-import json
-import pandas as pd
-from shapely.geometry import shape, Point
-from datetime import datetime
-import datetime as dt
-
-import Snow_drift as sd
-from datetime import datetime
-import plotly.express as px
-
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
 import statsmodels.api as sm
 
+# Signal Processing
+from scipy.fftpack import dct, idct
+from scipy.signal import stft
+
+# Custom modules
+import Snow_drift as sd
 
 
 # -----------------------------
@@ -451,6 +447,7 @@ def page_home():
     st.title("Home")
     st.write("Welcome to the app! Use the sidebar to navigate.")
 
+    st.image("Picture.jpg", caption="Local Image")
 
 
 # -----------------------------
@@ -1847,7 +1844,6 @@ def page_sarimax_forecasting():
         )
 
         st.plotly_chart(fig_zoom, use_container_width=True)
-
 
 
 
