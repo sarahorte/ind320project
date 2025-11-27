@@ -444,7 +444,7 @@ def plotly_spectrogram(
 # Page: Home
 # -----------------------------
 def page_home():
-    st.title("Home")
+    st.title("Home")    
     st.write("Welcome to the app! Use the sidebar to navigate.")
 
     st.image("Picture.jpg", caption="UGreen. “Hydro Energy Overview – Infographic.”")
@@ -831,7 +831,7 @@ def page_plots():
 
 
     # -----------------------------
-    st.title("Weather Data — January 2021 Overview")
+    st.header("Weather Data — January 2021 Overview")
 
     selected_area = st.session_state.get("selected_area", "NO1") # Default to NO1 if not set
     # Get the city corresponding to the selected area
