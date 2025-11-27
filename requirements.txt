@@ -13,7 +13,3 @@ statsmodels
 folium
 streamlit-folium
 shapely
-
-
-# Install Snow_drift directly from GitHub
-git+https://github.com/sarahorte/ind320project.git#egg=ind320project
