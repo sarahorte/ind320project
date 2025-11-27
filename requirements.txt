@@ -16,4 +16,4 @@ shapely
 
 
 # Install Snow_drift directly from GitHub
-git+https://github.com/sarahorte/ind320project.git#egg=Snow_drift
+git+https://github.com/sarahorte/ind320project.git#egg=ind320project
